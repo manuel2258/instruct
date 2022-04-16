@@ -1,0 +1,4 @@
+sh<main> {
+    > echo "test"
+    > echo "lol"
+}

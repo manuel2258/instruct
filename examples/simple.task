@@ -1,0 +1,10 @@
+task as sample_task: {
+    let (pre_var: var) from sh as pre: {
+        let (var: stdout) from run with (silent): echo "pre";
+        run: echo dyn_$var;
+    };
+    sh as exec: {
+        run: ls -al;
+    };
+    call as post: other_task.post;
+}
