@@ -1,9 +1,9 @@
-use crate::parse::ast::File;
+use crate::parse::ast::Namespace;
 
-mod executor;
+//mod executor;
 
-pub fn execute(file: File, task_name: &str) {
-    let mut executor = TaskExecutor::new(file.get_task(task_name).unwrap());
+pub fn execute(file: Namespace, task_name: &str) {
+    //let mut executor = TaskExecutor::new(file.get_task(task_name).unwrap());
 
-    executor.execute();
+    //    executor.execute();
 }

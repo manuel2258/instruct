@@ -18,7 +18,7 @@ pub enum ParseError {
     SyntaxError(String),
 }
 
-/*pub fn load_and_parse(path: &str) -> Result<ast::File, ParseError> {
+pub fn load_and_parse(path: &str) -> Result<ast::Namespace, ParseError> {
     let mut content = String::new();
     let mut content_path = match File::open(path) {
         Ok(val) => val,
@@ -29,11 +29,11 @@ pub enum ParseError {
         Err(e) => return Err(ParseError::InvalidFileContent(path.into(), e)),
     };
 
-    match executeable::file::<VerboseError<&str>>(&content) {
+    match combinator::namespace::module::<VerboseError<&str>>(&content) {
         Ok((_, ast)) => Ok(ast),
         Err(Err::Error(e)) | Err(Err::Failure(e)) => {
             Err(ParseError::SyntaxError(convert_error(content.as_str(), e)))
         }
         Err(e) => panic!("invalid state! incomplete: {:?}", e),
     }
-}*/
+}

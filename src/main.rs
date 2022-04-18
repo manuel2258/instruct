@@ -2,9 +2,7 @@ use std::env;
 
 use nom::error::ParseError;
 
-use crate::parse::ast::File;
-
-//mod interpreter;
+mod interpreter;
 mod parse;
 
 fn main() {
@@ -12,12 +10,12 @@ fn main() {
     let input_path = &args[1];
     let task = &args[2];
 
-    //let ast = parse::load_and_parse(input_path);
+    let ast = parse::load_and_parse(input_path);
 
-    //println!("parsed into: {:?}", ast);
+    println!("parsed into: {:?}", ast);
 
-    /*match ast {
+    match ast {
         Ok(file) => interpreter::execute(file, task),
         Err(e) => println!("Could not parse {}:\n{}", input_path, e),
-    }*/
+    }
 }

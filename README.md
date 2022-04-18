@@ -30,14 +30,22 @@ Therefor this language thrives to provide following goals:
 The sytax is still heavily WIP, however a small look into how a snipped could look:
 
 ```
+module as simple;
+
 task as sample_task: {
-    let (pre_var: var) from sh as pre: {
+    let (pre_var: var) from block with (runner: sh) as pre: {
         let (var: stdout) from run with (silent): echo "pre";
         run: echo dyn_$var;
     };
-    sh as exec: {
+    block as exec: {
         run: ls -al;
     };
     call as post: other_task.post;
-}
+};
+
+collection as test: {
+    task as sample_task: {
+        run as exec: ls -al;
+    };
+};
 ```

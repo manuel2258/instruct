@@ -1,23 +1,15 @@
-use std::collections::HashMap;
-
-#[derive(Debug)]
-pub struct File {
-    pub tasks: Vec<Executeable>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Namespace {
+    pub name: String,
+    pub ns_type: NamespaceType,
 }
 
-impl File {
-    pub fn get_task(&self, name: &str) -> Option<Executeable> {
-        match self.tasks.iter().find(|task| match &task.name {
-            Some(val) => val == name,
-            None => false,
-        }) {
-            Some(task) => Some(task.clone()),
-            None => None,
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NamespaceType {
+    Module { namespaces: Vec<Namespace> },
+    Collection { namespaces: Vec<Namespace> },
+    Task { execs: Vec<Executeable> },
 }
-
-pub struct Task {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Executeable {
@@ -54,5 +46,5 @@ pub struct VariableBindings {
 pub enum ExecuteableType {
     Command { cmd: String },
     Call { target: String },
-    ShBlock { execs: Vec<Executeable> },
+    Block { execs: Vec<Executeable> },
 }
