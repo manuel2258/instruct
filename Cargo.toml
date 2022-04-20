@@ -9,3 +9,6 @@ edition = "2021"
 nom = "7"
 thiserror = "1"
 anyhow = "1"
+
+regex = "1"
+lazy_static = "1"

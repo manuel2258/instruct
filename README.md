@@ -40,7 +40,7 @@ task as sample_task: {
     block as exec: {
         run: ls -al;
     };
-    call as post: other_task.post;
+    call as post: test.sample_task;
 };
 
 collection as test: {

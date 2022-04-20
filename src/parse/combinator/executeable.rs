@@ -1,19 +1,13 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_till, take_until, take_while, take_while1},
-    character::{
-        complete::{alpha1, alphanumeric1, newline, space0},
-        is_alphanumeric, is_space,
-    },
-    character::{
-        complete::{char, multispace0},
-        is_newline,
-    },
-    combinator::{opt, recognize},
+    bytes::complete::{tag, take_until},
+    character::complete::space0,
+    character::complete::{char, multispace0},
+    combinator::opt,
     error::ParseError,
-    multi::{many0, many1, separated_list1},
-    sequence::{delimited, pair, preceded, terminated},
-    Compare, IResult, InputLength, InputTake,
+    multi::many1,
+    sequence::{delimited, preceded, terminated},
+    IResult,
 };
 
 use crate::parse::ast::{Executeable, ExecuteableType};

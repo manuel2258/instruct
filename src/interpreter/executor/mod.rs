@@ -1,42 +1,28 @@
-use anyhow::Result;
-use std::collections::HashMap;
 
-use crate::parse::ast::Executeable;
+use thiserror::Error;
 
-pub mod block;
+use crate::interpreter::stack::Stack;
+use crate::parse::ast::{Executeable, ExecuteableType};
+
 pub mod command;
-pub mod task;
 
-type ExecuteResult = Result<HashMap<String, String>>;
+#[derive(Error)]
+pub enum ExecutorError {
+    #[error("Tried to create executor with wrong executor type {0}, this should not happen!")]
+    WrongExecutorType(ExecuteableType)
 
-struct ExecutionContext<'a> {
-    variables: HashMap<String, String>,
-    child: Option<&'a ExecutionContext<'a>>
 }
 
-impl<'a> ExecutionContext<'a> {
-    pub fn get(&self, name: &str) -> Option<String> {
-        match self.variables.get(name) {
-            Some(val) => Some(val.into()),
-            None => {
-                match self.child {
-                    Some(child) => child.get(name),
-                    None => None
-                }
-            }
-        }
-    }
 
-    pub fn set(&mut self, name: String, value: String) {
-        self.variables.insert(name, value);
-    }
-}
+
 
 trait Executor {
-    fn execute(&mut self) -> ExecuteResult;
+    fn init(&mut self, ctx: &mut Stack) -> anyhow::Result<()>;
+
+    fn execute(&mut self, ctx: &mut Stack) -> anyhow::Result<()>;
 }
 
-pub fn get_executor<'a>(input: Executeable, ctx: &'a ExecutionContext) -> Result<Box<dyn Executor>> {
+pub fn get_executor<'a>(input: Executeable, ctx: &'a Stack) -> Result<Box<dyn Executor>> {
     match input {
         Command()
     }

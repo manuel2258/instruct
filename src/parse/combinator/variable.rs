@@ -6,7 +6,7 @@ use nom::{
     combinator::{not, recognize},
     error::ParseError,
     multi::{many0_count, separated_list1},
-    sequence::{delimited, pair, preceded},
+    sequence::{pair, preceded},
     IResult,
 };
 
