@@ -3,21 +3,21 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 #[derive(Debug, PartialEq)]
-enum InterpolateableAfter<'a> {
-    Other(Box<Interpolateable<'a>>),
-    Value(&'a str),
+enum InterpolateableAfter {
+    Other(Box<Interpolateable>),
+    Value(String),
     None,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Interpolateable<'a> {
-    before: &'a str,
-    after: InterpolateableAfter<'a>,
-    variable_name: &'a str,
+pub struct Interpolateable {
+    before: String,
+    after: InterpolateableAfter,
+    variable_name: String,
 }
 
-impl<'a> Interpolateable<'a> {
-    pub fn new(value: &'a str) -> Option<Self> {
+impl Interpolateable {
+    pub fn new(value: &str) -> Option<Self> {
         lazy_static! {
             static ref RE: Regex = Regex::new(r"\$\{(?P<variable_name>(\w|_)+)\}").unwrap();
         }
@@ -32,22 +32,22 @@ impl<'a> Interpolateable<'a> {
                 let next = Interpolateable::new(after_variable);
                 let after = match next {
                     Some(other) => InterpolateableAfter::Other(Box::new(other)),
-                    None => InterpolateableAfter::Value(after_variable),
+                    None => InterpolateableAfter::Value(after_variable.into()),
                 };
 
                 Some(Self {
-                    before: before_variable,
+                    before: before_variable.into(),
                     after,
-                    variable_name: variable_name.as_str(),
+                    variable_name: variable_name.as_str().into(),
                 })
             }
             None => None,
         }
     }
 
-    pub fn interpolate(&self, stack: &'a Stack, target: &mut String) -> anyhow::Result<()> {
-        target.push_str(self.before);
-        target.push_str(stack.get(self.variable_name)?);
+    pub fn interpolate(&self, stack: &Stack, target: &mut String) -> anyhow::Result<()> {
+        target.push_str(&self.before);
+        target.push_str(stack.get(&self.variable_name)?);
 
         match &self.after {
             InterpolateableAfter::Other(other) => other.interpolate(stack, target)?,

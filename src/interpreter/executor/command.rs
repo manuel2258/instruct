@@ -1,50 +1,100 @@
 use std::process::Command;
 use std::{collections::HashMap, str};
 
+use anyhow::Context;
+
 use crate::interpreter::interpolateable::Interpolateable;
-use crate::parse::ast::{Executeable, ExecuteableType};
+use crate::interpreter::variables::Variables;
+use crate::parse::ast::{Executeable, ExecuteableType, VariableBindings};
 
-use super::{Executor, Stack, ExecutorError};
+use super::{Executor, ExecutorError, Stack};
 
-
-pub struct CommandExecutor<'a> {
+pub struct CommandExecutor {
+    variables: Variables,
     cmd: String,
-    interpolateable_cmd: Option<Interpolateable<'a>>,
+    interpolateable_cmd: Option<Interpolateable>,
 }
 
-impl<'a> CommandExecutor<'a> {
-    pub fn new(input: Executeable) -> anyhow::Result<Self> {
-        if let ExecuteableType::Command{cmd} = input.exec_type {
-            
-            Ok(Self { cmd, Interpolateable::new() })
+impl CommandExecutor {
+    pub fn new(input: Executeable) -> anyhow::Result<CommandExecutor> {
+        if let ExecuteableType::Command { cmd } = input.exec_type {
+            let mut exe = CommandExecutor {
+                variables: Variables::new(input.output_variables),
+                cmd,
+                interpolateable_cmd: None,
+            };
+            exe.interpolateable_cmd = Interpolateable::new(&exe.cmd);
+            Ok(exe)
         } else {
-            Err(ExecutorError::WrongExecutorType(input.exec_type))
+            Err(ExecutorError::WrongExecutorType(input.exec_type).into())
         }
     }
 
-    pub fn interpolate()
+    pub fn interpolate(&self, stack: &Stack) -> anyhow::Result<String> {
+        match &self.interpolateable_cmd {
+            None => Ok(self.cmd.clone()),
+            Some(inter) => {
+                let mut target = String::new();
+                inter
+                    .interpolate(stack, &mut target)
+                    .with_context(|| self.error_context())?;
+                Ok(target)
+            }
+        }
+    }
+
+    pub fn check_output_var_valid(name: &str) -> anyhow::Result<()> {
+        match name {
+            "stdout" => Ok(()),
+            "stderr" => Ok(()),
+            "status" => Ok(()),
+            _ => Err(ExecutorError::InvalidVariableBinding(name.into()).into()),
+        }
+    }
+
+    pub fn error_context(&self) -> String {
+        format!("at command: {:?}", self.cmd)
+    }
 }
 
 impl Executor for CommandExecutor {
-    fn init(&mut self, ctx: &mut Stack) -> anyhow::Result<()> {
+    fn init(&mut self, stack: &mut Stack) -> anyhow::Result<()> {
+        self.variables
+            .allocate_and_check_all(stack, &Self::check_output_var_valid)?;
 
+        Ok(())
     }
 
-    fn execute(&mut self, ctx: &mut Stack) -> anyhow::Result<()> {
-        let mut cmd_iter = input.split(' ');
+    fn execute(&mut self, stack: &mut Stack) -> anyhow::Result<()> {
+        let interpolated = self.interpolate(stack)?;
+        let mut cmd_iter = interpolated.split(' ');
         let program = cmd_iter.next().unwrap();
         let args: Vec<&str> = cmd_iter.collect();
-
 
         let mut cmd = Command::new(program);
         cmd.args(args);
 
-        let output = self.cmd.output()?;
-        println!("{} -> {:?}", self.input, output);
+        let output = cmd.output()?;
+        println!("{} -> {:?}", interpolated, output);
 
-        let mut res = HashMap::new();
-        res.insert("stdout".into(), str::from_utf8(&output.stdout)?.into());
-        res.insert("stderr".into(), str::from_utf8(&output.stderr)?.into());
-        Ok(res)
+        self.variables
+            .set_value(
+                stack,
+                "stdout",
+                str::from_utf8(&output.stdout).unwrap().into(),
+            )
+            .with_context(|| self.error_context())?;
+        self.variables
+            .set_value(
+                stack,
+                "stderr",
+                str::from_utf8(&output.stderr).unwrap().into(),
+            )
+            .with_context(|| self.error_context())?;
+        self.variables
+            .set_value(stack, "status", output.status.code().unwrap().to_string())
+            .with_context(|| self.error_context())?;
+
+        Ok(())
     }
 }

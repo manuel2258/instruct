@@ -37,9 +37,7 @@ task as sample_task: {
         let (var: stdout) from run with (silent): echo "pre";
         run: echo dyn_$var;
     };
-    block as exec: {
-        run: ls -al;
-    };
+    run as exec: ls -al;
     call as post: test.sample_task;
 };
 
