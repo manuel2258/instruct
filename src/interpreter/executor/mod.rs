@@ -25,7 +25,7 @@ pub trait Executor {
 }
 
 pub fn get_executor(input: Executeable, stack: &mut Stack) -> anyhow::Result<Box<dyn Executor>> {
-    match &input.exec_type {
+    match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),
         exec_type => Err(ExecutorError::ExecutorNotImplemented(exec_type.clone()).into()),
     }

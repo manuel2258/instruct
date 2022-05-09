@@ -1,3 +1,8 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
@@ -10,13 +15,25 @@ use nom::{
     IResult,
 };
 
-use crate::parse::ast::{Executeable, ExecuteableType};
+use crate::parse::ast::{Executeable, ExecuteableType, NamespaceOrExecuteable};
 use crate::parse::combinator::variable::{
     option_variable_bindings, output_variable_bindings, variable,
 };
 
 pub fn executeable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Executeable, E> {
-    alt((command_executeable, call_executeable, block_executeable))(i)
+    alt((
+        command_executeable,
+        call_executeable,
+        block_executeable,
+        task_executeable,
+    ))(i)
+}
+
+pub fn executeable_or<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, NamespaceOrExecuteable, E> {
+    let (i, executeable) = executeable(i)?;
+    Ok((i, NamespaceOrExecuteable::Executeable(executeable)))
 }
 
 pub fn executor_name<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
@@ -30,16 +47,26 @@ fn command_executeable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&str, 
     let (i, output_variables) = opt(output_variable_bindings)(i)?;
     let (i, _) = preceded(space0, tag("run"))(i)?;
     let (i, options) = opt(option_variable_bindings)(i)?;
-    let (i, name) = opt(executor_name)(i)?;
+    let (i, opt_name) = opt(executor_name)(i)?;
     let (i, _) = preceded(space0, char(':'))(i)?;
     let (i, cmd) = terminated(take_until(";"), char(';'))(i)?;
+    let name = match opt_name {
+        Some(val) => val,
+        None => {
+            let mut hasher = DefaultHasher::new();
+            cmd.hash(&mut hasher);
+            hasher.finish().to_string()
+        }
+    };
     Ok((
         i,
         Executeable {
             output_variables,
             name,
             options,
-            exec_type: ExecuteableType::Command { cmd: cmd.into() },
+            executeable_type: ExecuteableType::Command {
+                cmd: cmd.trim().into(),
+            },
         },
     ))
 }
@@ -48,17 +75,25 @@ fn call_executeable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&str, Exe
     let (i, _) = multispace0(i)?;
     let (i, output_variables) = opt(output_variable_bindings)(i)?;
     let (i, _) = preceded(space0, tag("call"))(i)?;
-    let (i, name) = opt(executor_name)(i)?;
+    let (i, opt_name) = opt(executor_name)(i)?;
     let (i, _) = preceded(space0, char(':'))(i)?;
     let (i, target) = terminated(take_until(";"), char(';'))(i)?;
+    let name = match opt_name {
+        Some(val) => val,
+        None => {
+            let mut hasher = DefaultHasher::new();
+            target.hash(&mut hasher);
+            hasher.finish().to_string()
+        }
+    };
     Ok((
         i,
         Executeable {
             output_variables,
             name,
             options: None,
-            exec_type: ExecuteableType::Call {
-                target: target.into(),
+            executeable_type: ExecuteableType::Call {
+                target: target.trim().into(),
             },
         },
     ))
@@ -69,20 +104,51 @@ fn block_executeable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&str, Ex
     let (i, output_variables) = opt(output_variable_bindings)(i)?;
     let (i, _) = preceded(space0, tag("block"))(i)?;
     let (i, options) = opt(option_variable_bindings)(i)?;
-    let (i, name) = opt(executor_name)(i)?;
+    let (i, opt_name) = opt(executor_name)(i)?;
     let (i, _) = preceded(space0, char(':'))(i)?;
     let (i, _) = delimited(space0, char('{'), multispace0)(i)?;
     let (i, execs) = many1(executeable)(i)?;
     let (i, _) = preceded(multispace0, char('}'))(i)?;
     let (i, _) = preceded(space0, char(';'))(i)?;
-
+    let name = match opt_name {
+        Some(val) => val,
+        None => {
+            let mut hasher = DefaultHasher::new();
+            execs.hash(&mut hasher);
+            hasher.finish().to_string()
+        }
+    };
     Ok((
         i,
         Executeable {
             output_variables,
             name,
             options,
-            exec_type: ExecuteableType::Block { execs },
+            executeable_type: ExecuteableType::Block {
+                executeables: execs,
+            },
+        },
+    ))
+}
+
+pub fn task_executeable<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Executeable, E> {
+    let (i, _) = multispace0(i)?;
+    let (i, _) = preceded(space0, tag("task"))(i)?;
+    let (i, name) = executor_name(i)?;
+    let (i, _) = preceded(space0, char(':'))(i)?;
+    let (i, _) = delimited(space0, char('{'), multispace0)(i)?;
+    let (i, executeables) = many1(executeable)(i)?;
+    let (i, _) = preceded(multispace0, char('}'))(i)?;
+    let (i, _) = preceded(space0, char(';'))(i)?;
+    Ok((
+        i,
+        Executeable {
+            output_variables: None,
+            name,
+            options: None,
+            executeable_type: ExecuteableType::Task { executeables },
         },
     ))
 }
@@ -105,11 +171,9 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Command {
-                            cmd: " test".into()
-                        }
+                        executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
                 ))
             );
@@ -125,11 +189,9 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Command {
-                            cmd: " test".into()
-                        }
+                        executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
                 ))
             );
@@ -143,11 +205,9 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: Some("test_cmd".into()),
+                        name: "test_cmd".into(),
                         options: None,
-                        exec_type: ExecuteableType::Command {
-                            cmd: " test".into()
-                        }
+                        executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
                 ))
             );
@@ -161,13 +221,11 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: Some(VariableBindings {
                             bindings: vec!["silent".into(), ("cd", "test_dir").into()]
                         }),
-                        exec_type: ExecuteableType::Command {
-                            cmd: " test".into()
-                        }
+                        executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
                 ))
             );
@@ -185,13 +243,11 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: Some("test_cmd".into()),
+                        name: "test_cmd".into(),
                         options: Some(VariableBindings {
                             bindings: vec!["silent".into(), ("cd", "test_dir").into()]
                         }),
-                        exec_type: ExecuteableType::Command {
-                            cmd: " test".into()
-                        }
+                        executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
                 ))
             );
@@ -210,10 +266,10 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Call {
-                            target: " test".into()
+                        executeable_type: ExecuteableType::Call {
+                            target: "test".into()
                         }
                     }
                 ))
@@ -230,10 +286,10 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Call {
-                            target: " test".into()
+                        executeable_type: ExecuteableType::Call {
+                            target: "test".into()
                         }
                     }
                 ))
@@ -248,10 +304,10 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: Some("test_call".into()),
+                        name: "test_call".into(),
                         options: None,
-                        exec_type: ExecuteableType::Call {
-                            target: " test".into()
+                        executeable_type: ExecuteableType::Call {
+                            target: "test".into()
                         }
                     }
                 ))
@@ -268,10 +324,10 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: Some("test_call".into()),
+                        name: "test_call".into(),
                         options: None,
-                        exec_type: ExecuteableType::Call {
-                            target: " test".into()
+                        executeable_type: ExecuteableType::Call {
+                            target: "test".into()
                         }
                     }
                 ))
@@ -291,16 +347,14 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }
@@ -316,16 +370,14 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }
@@ -341,16 +393,14 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: Some("pre".into()),
+                        name: "pre".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }
@@ -366,18 +416,16 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: Some(VariableBindings {
                             bindings: vec![("runner", "sh").into()]
                         }),
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }
@@ -395,16 +443,14 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }
@@ -420,20 +466,20 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: Some("pre1".into()),
+                        name: "pre1".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: Some("pre2".into()),
+                                name: "pre2".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Block {
-                                    execs: vec![Executeable {
+                                executeable_type: ExecuteableType::Block {
+                                    executeables: vec![Executeable {
                                         output_variables: None,
-                                        name: None,
+                                        name: "".into(),
                                         options: None,
-                                        exec_type: ExecuteableType::Command {
-                                            cmd: " test".into()
+                                        executeable_type: ExecuteableType::Command {
+                                            cmd: "test".into()
                                         }
                                     }]
                                 }
@@ -452,9 +498,11 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block { execs: vec![] }
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![]
+                        }
                     }
                 ))
             );
@@ -468,16 +516,14 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: None,
+                        name: "".into(),
                         options: None,
-                        exec_type: ExecuteableType::Block {
-                            execs: vec![Executeable {
+                        executeable_type: ExecuteableType::Block {
+                            executeables: vec![Executeable {
                                 output_variables: None,
-                                name: None,
+                                name: "".into(),
                                 options: None,
-                                exec_type: ExecuteableType::Command {
-                                    cmd: " test".into()
-                                }
+                                executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
                         }
                     }

@@ -2,6 +2,7 @@ use std::process::Command;
 use std::{collections::HashMap, str};
 
 use anyhow::Context;
+use log::{debug, error, info, warn};
 
 use crate::interpreter::interpolateable::Interpolateable;
 use crate::interpreter::variables::Variables;
@@ -17,7 +18,7 @@ pub struct CommandExecutor {
 
 impl CommandExecutor {
     pub fn new(input: Executeable) -> anyhow::Result<CommandExecutor> {
-        if let ExecuteableType::Command { cmd } = input.exec_type {
+        if let ExecuteableType::Command { cmd } = input.executeable_type {
             let mut exe = CommandExecutor {
                 variables: Variables::new(input.output_variables),
                 cmd,
@@ -26,7 +27,7 @@ impl CommandExecutor {
             exe.interpolateable_cmd = Interpolateable::new(&exe.cmd);
             Ok(exe)
         } else {
-            Err(ExecutorError::WrongExecutorType(input.exec_type).into())
+            Err(ExecutorError::WrongExecutorType(input.executeable_type).into())
         }
     }
 
@@ -74,25 +75,31 @@ impl Executor for CommandExecutor {
         let mut cmd = Command::new(program);
         cmd.args(args);
 
-        let output = cmd.output()?;
-        println!("{} -> {:?}", interpolated, output);
+        debug!("$  {}", &interpolated);
+        let output = cmd.output().with_context(|| self.error_context())?;
+        let stdout: String = str::from_utf8(&output.stdout).unwrap().into();
+        let stderr: String = str::from_utf8(&output.stderr).unwrap().into();
+        let status: String = output.status.code().unwrap().to_string();
+
+        if !output.status.success() {
+            error!("$? {}", status);
+        }
+
+        if !stdout.is_empty() {
+            info!("1> {}", &stdout);
+        }
+        if !stderr.is_empty() {
+            warn!("2> {}", &stderr);
+        }
 
         self.variables
-            .set_value(
-                stack,
-                "stdout",
-                str::from_utf8(&output.stdout).unwrap().into(),
-            )
+            .set_value(stack, "stdout", stdout)
             .with_context(|| self.error_context())?;
         self.variables
-            .set_value(
-                stack,
-                "stderr",
-                str::from_utf8(&output.stderr).unwrap().into(),
-            )
+            .set_value(stack, "stderr", stderr)
             .with_context(|| self.error_context())?;
         self.variables
-            .set_value(stack, "status", output.status.code().unwrap().to_string())
+            .set_value(stack, "status", status)
             .with_context(|| self.error_context())?;
 
         Ok(())

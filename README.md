@@ -7,8 +7,9 @@ A language to write general purpose makefile like tasks which are powerfull and 
 This project is still not even close to working!
 
 - [/] Parsing
-- [] Static analysis
-- [] Interpretter
+- [/] Static analysis
+- [/] Interpretter
+- [] Task project definition and config files
 - [] Dependency System
 
 ## Goals
@@ -46,4 +47,9 @@ collection as test: {
         run as exec: ls -al;
     };
 };
+```
+
+Parts of this can already be executed using cargo!  
+```sh
+cargo run ./examples/example.task simple.sample_task.exec
 ```

@@ -1,4 +1,3 @@
-use anyhow::Context;
 use thiserror::Error;
 
 use crate::parse::ast::{Executeable, Namespace, NamespaceType};
@@ -25,7 +24,7 @@ pub enum NamespaceChild {
 
 impl NamespaceNode {
     pub fn new(namespace: Namespace) -> Self {
-        match &namespace.ns_type {
+        match &namespace.namespace_type {
             NamespaceType::Task { execs } => Self {
                 namespace: namespace.clone(),
                 children: execs
@@ -49,7 +48,14 @@ impl NamespaceNode {
 
     pub fn find_executeable(&self, name_parts: &[&str]) -> anyhow::Result<Option<&Executeable>> {
         match name_parts.len() {
-            0 | 1 => Err(NamespaceError::ExecutableNotFound.into()),
+            0 => Err(NamespaceError::ExecutableNotFound.into()),
+            1 => {
+                if let NamespaceType::Task { .. } = self.namespace.namespace_type && self.namespace.name == name_parts[0] {
+                    Ok()
+                } else {
+                    Err(NamespaceError::ExecutableNotFound.into())
+                }
+            }
             _ => {
                 for child in &self.children {
                     if let Some(val) = child.find_executeable(&name_parts[1..])? {

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use thiserror::Error;
 
 use crate::parse::ast::Namespace;
@@ -38,8 +39,12 @@ impl Interpreter {
 
         let mut stack = Stack::new();
         let mut executor = get_executor(executeable.clone(), &mut stack)?;
-        executor.init(&mut stack)?;
-        executor.execute(&mut stack)?;
+        executor
+            .init(&mut stack)
+            .with_context(|| format!("at initializing task {0}", task_name))?;
+        executor
+            .execute(&mut stack)
+            .with_context(|| format!("at executing task {0}", task_name))?;
 
         Ok(())
     }

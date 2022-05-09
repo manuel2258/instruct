@@ -5,7 +5,7 @@ task as sample_task: {
         let (var: stdout) from run with (silent): echo "pre";
         run: echo dyn_$var;
     };
-    run as exec: echo test;
+    run as exec: cat Cargo.toml;
     call as post: other_task.post;
 };
 

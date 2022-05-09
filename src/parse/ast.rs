@@ -3,25 +3,40 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Namespace {
     pub name: String,
-    pub ns_type: NamespaceType,
+    pub namespace_type: NamespaceType,
+    pub children: HashMap<String, NamespaceOrExecuteable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NamespaceType {
-    Module { namespaces: Vec<Namespace> },
-    Collection { namespaces: Vec<Namespace> },
-    Task { execs: Vec<Executeable> },
+    Module,
+    Collection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NamespaceOrExecuteable {
+    Namespace(Namespace),
+    Executeable(Executeable),
+}
+
+impl NamespaceOrExecuteable {
+    pub fn get_name(&self) -> &str {
+        match self {
+            NamespaceOrExecuteable::Executeable(executeable) => &executeable.name,
+            NamespaceOrExecuteable::Namespace(namespace) => &namespace.name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Executeable {
     pub output_variables: Option<VariableBindings>,
-    pub name: Option<String>,
+    pub name: String,
     pub options: Option<VariableBindings>,
-    pub exec_type: ExecuteableType,
+    pub executeable_type: ExecuteableType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VariableBinding {
     Single(String),
     Dual(String, String),
@@ -39,14 +54,15 @@ impl From<(&str, &str)> for VariableBinding {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VariableBindings {
     pub bindings: Vec<VariableBinding>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExecuteableType {
     Command { cmd: String },
     Call { target: String },
-    Block { execs: Vec<Executeable> },
+    Block { executeables: Vec<Executeable> },
+    Task { executeables: Vec<Executeable> },
 }

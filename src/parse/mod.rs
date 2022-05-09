@@ -1,3 +1,4 @@
+use anyhow;
 use std::io;
 use std::{fs::File, io::Read};
 use thiserror::Error;
@@ -18,21 +19,21 @@ pub enum ParseError {
     SyntaxError(String),
 }
 
-pub fn load_and_parse(path: &str) -> Result<ast::Namespace, ParseError> {
+pub fn load_and_parse(path: &str) -> anyhow::Result<ast::Namespace> {
     let mut content = String::new();
     let mut content_path = match File::open(path) {
         Ok(val) => val,
-        Err(e) => return Err(ParseError::FileNotFound(path.into(), e)),
+        Err(e) => return Err(ParseError::FileNotFound(path.into(), e).into()),
     };
     match content_path.read_to_string(&mut content) {
         Ok(_) => (),
-        Err(e) => return Err(ParseError::InvalidFileContent(path.into(), e)),
+        Err(e) => return Err(ParseError::InvalidFileContent(path.into(), e).into()),
     };
 
     match combinator::namespace::module::<VerboseError<&str>>(&content) {
         Ok((_, ast)) => Ok(ast),
         Err(Err::Error(e)) | Err(Err::Failure(e)) => {
-            Err(ParseError::SyntaxError(convert_error(content.as_str(), e)))
+            Err(ParseError::SyntaxError(convert_error(content.as_str(), e)).into())
         }
         Err(e) => panic!("invalid state! incomplete: {:?}", e),
     }
