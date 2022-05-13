@@ -5,12 +5,14 @@ task as sample_task: {
         let (var: stdout) from run with (silent): echo "pre";
         run: echo dyn_$var;
     };
-    run as exec: cat Cargo.toml;
+    run as main: cat Cargo.toml;
     call as post: other_task.post;
 };
 
 collection as test: {
     task as sample_task: {
-        run as exec: ls -al;
+        let (status1: status) from run as pre: ls -al;
+        let (status2: status) from run as main: cat random_file.json;
+        run as post: echo "pre: ${status1} and main: ${status2}";
     };
 };

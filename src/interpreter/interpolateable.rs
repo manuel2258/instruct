@@ -1,12 +1,12 @@
-use crate::interpreter::stack::Stack;
 use lazy_static::lazy_static;
 use regex::Regex;
+
+use super::stack::RcStack;
 
 #[derive(Debug, PartialEq)]
 enum InterpolateableAfter {
     Other(Box<Interpolateable>),
     Value(String),
-    None,
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,14 +45,22 @@ impl Interpolateable {
         }
     }
 
-    pub fn interpolate(&self, stack: &Stack, target: &mut String) -> anyhow::Result<()> {
+    pub fn assert_variables_allocated(&self, stack: &RcStack) -> anyhow::Result<()> {
+        stack.borrow_mut().assert_allocated(&self.variable_name)?;
+
+        match &self.after {
+            InterpolateableAfter::Value(_) => Ok(()),
+            InterpolateableAfter::Other(other) => other.assert_variables_allocated(stack),
+        }
+    }
+
+    pub fn interpolate(&self, stack: &RcStack, target: &mut String) -> anyhow::Result<()> {
         target.push_str(&self.before);
-        target.push_str(stack.get(&self.variable_name)?);
+        target.push_str(&stack.borrow().get(&self.variable_name)?);
 
         match &self.after {
             InterpolateableAfter::Other(other) => other.interpolate(stack, target)?,
             InterpolateableAfter::Value(after) => target.push_str(after),
-            InterpolateableAfter::None => (),
         }
 
         Ok(())
@@ -92,7 +100,9 @@ mod tests {
         let stack: Stack = vec![("var", "test-value")].into();
 
         let mut output = String::new();
-        interpolateable.interpolate(&stack, &mut output).unwrap();
+        interpolateable
+            .interpolate(stack.into(), &mut output)
+            .unwrap();
 
         assert_eq!(&output, "value_with_test-value");
     }

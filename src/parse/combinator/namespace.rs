@@ -7,7 +7,7 @@ use nom::{
     character::complete::{char, multispace0},
     combinator::eof,
     error::ParseError,
-    multi::{many0, many1},
+    multi::many0,
     sequence::{delimited, preceded},
     IResult,
 };
@@ -28,16 +28,10 @@ pub fn namespace_or<'a, E: ParseError<&'a str>>(
     Ok((i, NamespaceOrExecuteable::Namespace(namespace)))
 }
 
-pub fn namespace_or_executeable<'a, E: ParseError<&'a str>>(
-    i: &'a str,
-) -> IResult<&'a str, NamespaceOrExecuteable, E> {
-    alt((namespace_or, executeable_or))(i)
-}
-
 pub fn namespace_or_executeable_map<'a, E: ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, HashMap<String, NamespaceOrExecuteable>, E> {
-    let (i, namespaces) = many0(alt((namespace_or, executeable_or)))(i)?;
+    let (i, mut namespaces) = many0(alt((namespace_or, executeable_or)))(i)?;
     Ok((
         i,
         namespaces

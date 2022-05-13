@@ -4,29 +4,35 @@ use crate::interpreter::stack::Stack;
 use crate::parse::ast::{Executeable, ExecuteableType};
 
 use self::command::CommandExecutor;
+use self::task::TaskExecutor;
 
-pub mod command;
+use super::stack::RcStack;
+
+mod command;
+mod task;
 
 #[derive(Error, Debug)]
 pub enum ExecutorError {
     #[error("Tried to create executor with wrong executor type {0:?}, this should not happen!")]
     WrongExecutorType(ExecuteableType),
     #[error("Executor for type {0:?} not yet implemented!")]
-    ExecutorNotImplemented(ExecuteableType),
-
-    #[error("Invalid variable binding, executor does not provide value for '{0}'")]
-    InvalidVariableBinding(String),
+    NotImplemented(ExecuteableType),
+    #[error("Executor was not initialized")]
+    NotInitialized,
 }
 
 pub trait Executor {
-    fn init(&mut self, stack: &mut Stack) -> anyhow::Result<()>;
+    fn init(&mut self, stack: RcStack) -> anyhow::Result<()>;
 
-    fn execute(&mut self, stack: &mut Stack) -> anyhow::Result<()>;
+    fn execute(&mut self, stack: RcStack) -> anyhow::Result<()>;
 }
 
-pub fn get_executor(input: Executeable, stack: &mut Stack) -> anyhow::Result<Box<dyn Executor>> {
+type DynExecutor = Box<dyn Executor>;
+
+pub fn get_executor<'a>(input: Executeable, _stack: RcStack) -> anyhow::Result<DynExecutor> {
     match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),
-        exec_type => Err(ExecutorError::ExecutorNotImplemented(exec_type.clone()).into()),
+        ExecuteableType::Task { .. } => Ok(Box::new(TaskExecutor::new(input)?)),
+        exec_type => Err(ExecutorError::NotImplemented(exec_type.clone()).into()),
     }
 }

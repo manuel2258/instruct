@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use log::trace;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,60 +14,85 @@ pub enum Error {
     UndefinedVariableAccessed(String),
 }
 
-type Result<T> = std::result::Result<T, Error>;
+pub type RcStack = Rc<RefCell<Stack>>;
 
-pub struct Stack<'a> {
+pub struct Stack {
     variables: HashMap<String, Option<String>>,
-    child: Option<&'a Stack<'a>>,
+    parent: Option<RcStack>,
+    height: u16,
 }
 
-impl<'a> Stack<'a> {
+impl Stack {
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
-            child: None,
+            parent: None,
+            height: 0,
         }
     }
 
-    pub fn pop_new(&'a self) -> Stack<'a> {
+    pub fn inherit_new(parent: &RcStack) -> Stack {
         Self {
             variables: HashMap::new(),
-            child: Some(self),
+            parent: Some(parent.clone()),
+            height: parent.borrow().height + 1,
         }
     }
 
-    pub fn get(&'a self, name: &str) -> Result<&'a str> {
+    pub fn get(&self, name: &str) -> anyhow::Result<String> {
+        trace!("Getting '{}' from stack {}", name, self.height);
         match self.variables.get(name) {
-            Some(Some(val)) => Ok(val),
-            Some(None) => Err(Error::UnsetVariableAccessed(name.into())),
-            None => match self.child {
-                Some(child) => child.get(name),
-                None => Err(Error::UnallocatedVariableAccessed(name.into())),
+            Some(Some(val)) => Ok(val.into()),
+            Some(None) => Err(Error::UnsetVariableAccessed(name.into()).into()),
+            None => match &self.parent {
+                Some(child) => child.borrow().get(name),
+                None => Err(Error::UnallocatedVariableAccessed(name.into()).into()),
             },
         }
     }
 
-    pub fn set(&mut self, name: String, value: String) -> Result<()> {
+    pub fn set(&mut self, name: String, value: String) -> anyhow::Result<()> {
+        if value.len() > 10 {
+            trace!(
+                "Setting '{}' to {:?}..{:?}' for stack {}",
+                &name,
+                &value[..5],
+                &value[value.len() - 5..],
+                self.height
+            );
+        } else {
+            trace!(
+                "Setting '{}' to {:?} for stack {}",
+                &name,
+                &value,
+                self.height
+            );
+        }
         if let None = self.variables.insert(name.clone(), Some(value)) {
-            return Err(Error::UnallocatedVariableAccessed(name.into()));
+            return Err(Error::UnallocatedVariableAccessed(name.into()).into());
         }
         Ok(())
     }
 
     pub fn allocate(&mut self, name: String) {
+        trace!("Allocating '{}' for stack {}", &name, self.height);
         self.variables.insert(name, None);
     }
 
-    pub fn assert_allocated(&mut self, name: &str) -> Result<()> {
+    pub fn assert_allocated(&self, name: &str) -> anyhow::Result<()> {
+        trace!("Asserting allocation '{}' for stack {}", &name, self.height);
         match self.variables.contains_key(name) {
             true => Ok(()),
-            false => Err(Error::UndefinedVariableAccessed(name.into())),
+            false => match &self.parent {
+                Some(parent) => parent.borrow().assert_allocated(name),
+                None => Err(Error::UndefinedVariableAccessed(name.into()).into()),
+            },
         }
     }
 }
 
-impl<'a> From<Vec<(&'static str, &'static str)>> for Stack<'a> {
-    fn from(values: Vec<(&str, &str)>) -> Stack<'a> {
+impl From<Vec<(&'static str, &'static str)>> for Stack {
+    fn from(values: Vec<(&str, &str)>) -> Stack {
         let mut stack = Stack::new();
 
         for (key, value) in values {
@@ -75,5 +101,11 @@ impl<'a> From<Vec<(&'static str, &'static str)>> for Stack<'a> {
         }
 
         stack
+    }
+}
+
+impl Into<RcStack> for Stack {
+    fn into(self) -> RcStack {
+        Rc::new(RefCell::new(self))
     }
 }

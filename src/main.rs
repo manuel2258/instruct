@@ -4,7 +4,7 @@ use fern::{
     self,
     colors::{Color, ColoredLevelConfig},
 };
-use log::{error, info, warn, LevelFilter};
+use log::{error, warn, Level, LevelFilter};
 
 use crate::interpreter::Interpreter;
 
@@ -16,15 +16,26 @@ fn setup_logger() -> anyhow::Result<()> {
         .error(Color::BrightRed)
         .warn(Color::Magenta)
         .info(Color::Blue)
-        .debug(Color::BrightBlack);
+        .debug(Color::BrightBlack)
+        .trace(Color::BrightCyan);
     fern::Dispatch::new()
         .format(move |out, message, record| {
-            out.finish(format_args!(
-                "\x1B[{}m{}\x1B[{}m",
-                colors.get_color(&record.level()).to_fg_str(),
-                message,
-                Color::White.to_fg_str()
-            ))
+            if record.level() == Level::Trace {
+                out.finish(format_args!(
+                    "\x1B[{}m[{}] {}\x1B[{}m",
+                    colors.get_color(&record.level()).to_fg_str(),
+                    record.target(),
+                    message,
+                    Color::White.to_fg_str()
+                ))
+            } else {
+                out.finish(format_args!(
+                    "\x1B[{}m{}\x1B[{}m",
+                    colors.get_color(&record.level()).to_fg_str(),
+                    message,
+                    Color::White.to_fg_str()
+                ))
+            }
         })
         .level(LevelFilter::Debug)
         .chain(std::io::stdout())
@@ -46,7 +57,7 @@ fn main() {
             let interpreter = Interpreter::new(file);
             match interpreter.run_task(&task) {
                 Ok(_) => warn!("Successfully executed task {}", task),
-                Err(err) => error!("Error while executing task {}:\n{:?}", task, err),
+                Err(err) => error!("Error {:?}", err),
             }
         }
         Err(e) => error!("Could not parse {}:\n{}", input_path, e),

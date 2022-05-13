@@ -38,13 +38,13 @@ task as sample_task: {
         let (var: stdout) from run with (silent): echo "pre";
         run: echo dyn_$var;
     };
-    run as exec: ls -al;
+    run as main: ls -al;
     call as post: test.sample_task;
 };
 
 collection as test: {
     task as sample_task: {
-        run as exec: ls -al;
+        run as main: ls -al;
     };
 };
 ```
