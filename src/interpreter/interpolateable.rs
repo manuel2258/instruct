@@ -101,7 +101,7 @@ mod tests {
 
         let mut output = String::new();
         interpolateable
-            .interpolate(stack.into(), &mut output)
+            .interpolate(&stack.into(), &mut output)
             .unwrap();
 
         assert_eq!(&output, "value_with_test-value");
@@ -116,7 +116,9 @@ mod tests {
         let stack: Stack = vec![("var", "val")].into();
 
         let mut output = String::new();
-        interpolateable.interpolate(&stack, &mut output).unwrap();
+        interpolateable
+            .interpolate(&stack.into(), &mut output)
+            .unwrap();
 
         assert_eq!(&output, "value_with_val_variable");
     }
@@ -130,7 +132,9 @@ mod tests {
         let stack: Stack = vec![("var1", "val1"), ("var2", "val2")].into();
 
         let mut output = String::new();
-        interpolateable.interpolate(&stack, &mut output).unwrap();
+        interpolateable
+            .interpolate(&stack.into(), &mut output)
+            .unwrap();
 
         assert_eq!(&output, "value_with_val1_multiple_val2_variable");
     }

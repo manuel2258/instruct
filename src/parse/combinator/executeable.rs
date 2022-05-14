@@ -171,7 +171,7 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "12855381050612350598".into(),
                         options: None,
                         executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
@@ -189,7 +189,7 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: "".into(),
+                        name: "12855381050612350598".into(),
                         options: None,
                         executeable_type: ExecuteableType::Command { cmd: "test".into() }
                     }
@@ -221,7 +221,7 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "12855381050612350598".into(),
                         options: Some(VariableBindings {
                             bindings: vec!["silent".into(), ("cd", "test_dir").into()]
                         }),
@@ -266,7 +266,7 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "12855381050612350598".into(),
                         options: None,
                         executeable_type: ExecuteableType::Call {
                             target: "test".into()
@@ -286,7 +286,7 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: "".into(),
+                        name: "12855381050612350598".into(),
                         options: None,
                         executeable_type: ExecuteableType::Call {
                             target: "test".into()
@@ -347,12 +347,12 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "4604916792254010148".into(),
                         options: None,
                         executeable_type: ExecuteableType::Block {
                             executeables: vec![Executeable {
                                 output_variables: None,
-                                name: "".into(),
+                                name: "12855381050612350598".into(),
                                 options: None,
                                 executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
@@ -370,12 +370,12 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "4604916792254010148".into(),
                         options: None,
                         executeable_type: ExecuteableType::Block {
                             executeables: vec![Executeable {
                                 output_variables: None,
-                                name: "".into(),
+                                name: "12855381050612350598".into(),
                                 options: None,
                                 executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
@@ -398,7 +398,7 @@ mod tests {
                         executeable_type: ExecuteableType::Block {
                             executeables: vec![Executeable {
                                 output_variables: None,
-                                name: "".into(),
+                                name: "12855381050612350598".into(),
                                 options: None,
                                 executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
@@ -416,14 +416,14 @@ mod tests {
                     "",
                     Executeable {
                         output_variables: None,
-                        name: "".into(),
+                        name: "4604916792254010148".into(),
                         options: Some(VariableBindings {
                             bindings: vec![("runner", "sh").into()]
                         }),
                         executeable_type: ExecuteableType::Block {
                             executeables: vec![Executeable {
                                 output_variables: None,
-                                name: "".into(),
+                                name: "12855381050612350598".into(),
                                 options: None,
                                 executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
@@ -443,12 +443,12 @@ mod tests {
                         output_variables: Some(VariableBindings {
                             bindings: vec![("var", "stdout").into()]
                         }),
-                        name: "".into(),
+                        name: "4604916792254010148".into(),
                         options: None,
                         executeable_type: ExecuteableType::Block {
                             executeables: vec![Executeable {
                                 output_variables: None,
-                                name: "".into(),
+                                name: "12855381050612350598".into(),
                                 options: None,
                                 executeable_type: ExecuteableType::Command { cmd: "test".into() }
                             }]
@@ -476,7 +476,7 @@ mod tests {
                                 executeable_type: ExecuteableType::Block {
                                     executeables: vec![Executeable {
                                         output_variables: None,
-                                        name: "".into(),
+                                        name: "12855381050612350598".into(),
                                         options: None,
                                         executeable_type: ExecuteableType::Command {
                                             cmd: "test".into()

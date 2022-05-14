@@ -51,5 +51,5 @@ collection as test: {
 
 Parts of this can already be executed using cargo!  
 ```sh
-cargo run ./examples/example.task simple.sample_task.exec
+cargo run ./examples/example.task simple.sample_task
 ```
