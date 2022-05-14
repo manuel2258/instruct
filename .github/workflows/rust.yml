@@ -13,16 +13,12 @@ jobs:
           toolchain: nightly
           override: true
           components: llvm-tools-preview
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-llvm-cov
-          version: latest
-          use-tool-cache: true
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: nextest
-          version: latest
-          use-tool-cache: true
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@nextest
+
+      - name: Debug
+        run: ls -al
 
       - name: Collect coverage data
         run: cargo llvm-cov nextest
