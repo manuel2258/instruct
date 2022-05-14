@@ -1,6 +1,6 @@
 on: [push]
 
-name: rust
+name: test
 
 jobs:
   test:
@@ -22,3 +22,12 @@ jobs:
 
       - name: Collect coverage data
         run: cargo llvm-cov nextest
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features  
