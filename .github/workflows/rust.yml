@@ -17,10 +17,12 @@ jobs:
         with:
           crate: cargo-llvm-cov
           version: latest
+          use-tool-cache: true
       - uses: actions-rs/install@v0.1
         with:
           crate: nextest
           version: latest
+          use-tool-cache: true
 
       - name: Collect coverage data
         run: cargo llvm-cov nextest
