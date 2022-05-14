@@ -4,7 +4,7 @@ name: test
 
 jobs:
   test:
-    name: Test and coverage
+    name: test and coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,6 +23,7 @@ jobs:
       - name: Collect coverage data
         run: cargo llvm-cov nextest
   clippy_check:
+    name: clippy check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -31,3 +32,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features  
+  cargo_bloat:
+    name: binary size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run cargo bloat
+        uses: orf/cargo-bloat-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
