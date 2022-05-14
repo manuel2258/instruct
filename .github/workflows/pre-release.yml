@@ -22,5 +22,6 @@ jobs:
           args: --release --all-features
       - uses: softprops/action-gh-release@v1
         with:
+          tag: staging
           prerelease: true
           files: target/release/task
