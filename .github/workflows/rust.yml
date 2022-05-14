@@ -7,16 +7,20 @@ jobs:
     name: Test and coverage
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
           components: llvm-tools-preview
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: taiki-e/install-action@nextest
-
-      - name: Debug
-        run: ls -al
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-llvm-cov
+          version: latest
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: nextest
+          version: latest
 
       - name: Collect coverage data
         run: cargo llvm-cov nextest
