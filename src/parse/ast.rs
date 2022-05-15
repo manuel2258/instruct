@@ -59,6 +59,23 @@ pub struct VariableBindings {
     pub bindings: Vec<VariableBinding>,
 }
 
+impl VariableBindings {
+    pub fn find(&self, name: &str) -> Option<&str> {
+        for binding in &self.bindings {
+            match binding {
+                VariableBinding::Single(binding_name) if binding_name == name => {
+                    return Some(&binding_name)
+                }
+                VariableBinding::Dual(binding_name, value) if binding_name == name => {
+                    return Some(&value)
+                }
+                _ => (),
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExecuteableType {
     Command { cmd: String },

@@ -13,6 +13,6 @@ collection as test: {
     task as sample_task: {
         let (status1: status) from run as pre: ls -al;
         let (status2: status) from run as main: cat random_file.json;
-        run as post: echo "pre: ${status1} and main: ${status2}";
+        run with (stdin: status2) as post: echo;
     };
 };

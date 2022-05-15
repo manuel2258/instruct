@@ -16,16 +16,22 @@ pub struct CommandExecutor {
     variables: Variables,
     cmd: String,
     interpolateable_cmd: Option<Interpolateable>,
+    stdin_variable: Option<String>,
     stack: Option<RcStack>,
 }
 
 impl CommandExecutor {
     pub fn new(input: Executeable) -> anyhow::Result<Self> {
         if let ExecuteableType::Command { cmd } = input.executeable_type {
+            let stdin_variable: Option<String> = match input.options {
+                Some(bindings) => bindings.find("stdin").map(|val| val.into()),
+                None => None,
+            };
             let mut exe = CommandExecutor {
                 variables: Variables::new(input.output_variables),
                 cmd,
                 interpolateable_cmd: None,
+                stdin_variable,
                 stack: None,
             };
             exe.interpolateable_cmd = Interpolateable::new(&exe.cmd);
@@ -60,6 +66,11 @@ impl Executor for CommandExecutor {
                 .assert_variables_allocated(&stack)
                 .with_context(|| self.error_context())?;
         }
+
+        if let Some(stdin_variable) = &self.stdin_variable {
+            stack.borrow().assert_allocated(stdin_variable)?;
+        }
+
         let mut child_stack: RcStack = Stack::inherit_new(&stack).into();
         {
             let mut child_stack_ref = child_stack.borrow_mut();
@@ -90,7 +101,13 @@ impl Executor for CommandExecutor {
 
             debug!("$  {}", &interpolated);
             let mut process = cmd.spawn().with_context(|| self.error_context())?;
-            write!(process.stdin.as_mut().unwrap(), "")?;
+
+            if let Some(stdin_variable) = &self.stdin_variable {
+                let stdin = parent_stack.borrow().get(stdin_variable)?;
+                debug!("<  {}", &stdin);
+                write!(process.stdin.as_mut().unwrap(), "{}", &stdin)?;
+            }
+
             let output = process
                 .wait_with_output()
                 .with_context(|| self.error_context())?;
