@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::parse::ast::Namespace;
 
 use self::{
-    executor::get_executor,
+    executor::{get_executor, Executor},
     namespace::NamespaceResolver,
     stack::{RcStack, Stack},
 };
@@ -16,20 +16,30 @@ mod stack;
 mod variables;
 
 #[derive(Error, Debug)]
-pub enum InterpreterError {}
+pub enum InterpreterError {
+    #[error("Interpreter is in invalid state")]
+    InvalidState,
+}
+
+struct ExecutionUnit {
+    stack: RcStack,
+    executor: Box<dyn Executor>,
+}
 
 pub struct Interpreter {
     root_namespace: Namespace,
+    execution_unit: Option<ExecutionUnit>,
 }
 
 impl Interpreter {
-    pub fn new(file: Namespace) -> Self {
+    pub fn new(root: Namespace) -> Self {
         Self {
-            root_namespace: file,
+            root_namespace: root,
+            execution_unit: None,
         }
     }
 
-    pub fn run_task(&self, task_name: &str) -> anyhow::Result<()> {
+    pub fn resolve(&mut self, task_name: &str) -> anyhow::Result<()> {
         let task_name_vec: Vec<&str> = task_name.split(".").collect();
 
         let resolver = NamespaceResolver::new(&self.root_namespace);
@@ -37,14 +47,23 @@ impl Interpreter {
         let executeable = resolver.resolve(&task_name_vec)?;
 
         let stack: RcStack = Stack::new().into();
-        let mut executor = get_executor(executeable.clone(), stack.clone())?;
-        executor
-            .init(stack.clone())
-            .with_context(|| format!("at initializing task {0}", task_name))?;
-        executor
-            .execute(stack)
-            .with_context(|| format!("at executing task {0}", task_name))?;
+        let executor = get_executor(executeable.clone(), stack.clone())?;
+
+        self.execution_unit = Some(ExecutionUnit { stack, executor });
 
         Ok(())
+    }
+
+    pub fn initialize(&mut self) -> anyhow::Result<()> {
+        match &mut self.execution_unit {
+            Some(unit) => unit.executor.init(unit.stack.clone()),
+            None => Err(InterpreterError::InvalidState.into()),
+        }
+    }
+    pub fn run(&mut self) -> anyhow::Result<()> {
+        match &mut self.execution_unit {
+            Some(unit) => unit.executor.execute(unit.stack.clone()),
+            None => Err(InterpreterError::InvalidState.into()),
+        }
     }
 }

@@ -5,10 +5,14 @@ use crate::parse::ast::{Executeable, Namespace, NamespaceOrExecuteable};
 
 #[derive(Error, Debug)]
 pub enum NamespaceError {
-    #[error("The referenced namespace could not be found")]
-    NotFound,
-    #[error("The referenced namespace '{0}' is a executeable")]
-    ContainedExecuteable(String),
+    #[error("searching '{0}' as '{1}' is invalid and should never happen!")]
+    InvalidSearch(String, String),
+    #[error("could not find namespace '{0}' in '{1}'")]
+    NotFound(String, String),
+    #[error("the referenced namespace '{0}' is a executeable and therefor not a namespace")]
+    NotANamespace(String),
+    #[error("the referenced task '{0}' is not a executeable")]
+    NotAExecuteable(String),
 }
 
 #[derive(Debug)]
@@ -22,28 +26,37 @@ impl<'a> NamespaceResolver<'a> {
     }
 
     pub fn resolve(&self, name_parts: &[&str]) -> anyhow::Result<&'a Executeable> {
-        if name_parts.get(0) != Some(&self.namespace.name.as_ref()) {
-            return Err(NamespaceError::NotFound.into());
-        }
-
-        let current_part: &str = match name_parts.get(1) {
+        let current_part: &str = match name_parts.get(0) {
             Some(val) => *val,
-            None => return Err(NamespaceError::NotFound.into()),
+            None => return Err(NamespaceError::NotAExecuteable(self.namespace.name.clone()).into()),
         };
 
-        match self.namespace.children.get(current_part) {
+        if current_part != self.namespace.name {
+            return Err(NamespaceError::InvalidSearch(
+                current_part.into(),
+                self.namespace.name.clone(),
+            )
+            .into());
+        }
+
+        let next_part: &str = match name_parts.get(1) {
+            Some(val) => *val,
+            None => return Err(NamespaceError::NotAExecuteable(self.namespace.name.clone()).into()),
+        };
+
+        match self.namespace.children.get(next_part) {
             Some(NamespaceOrExecuteable::Namespace(next)) => Ok(NamespaceResolver::new(next)
                 .resolve(&name_parts[1..])
                 .with_context(|| {
-                    format!("at searching {} in {}", current_part, &self.namespace.name)
+                    format!("at searching '{}' in '{}'", next_part, &self.namespace.name)
                 })?),
             Some(NamespaceOrExecuteable::Executeable(executeable)) => {
                 if name_parts.len() > 2 {
-                    return Err(NamespaceError::ContainedExecuteable(current_part.into()).into());
+                    return Err(NamespaceError::NotANamespace(next_part.into()).into());
                 }
                 Ok(executeable)
             }
-            None => Err(NamespaceError::NotFound.into()),
+            None => Err(NamespaceError::NotFound(next_part.into(), current_part.into()).into()),
         }
     }
 }

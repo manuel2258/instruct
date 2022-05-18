@@ -3,6 +3,10 @@ name = "task_lang"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "task_lang"
+path = "src/lib.rs"
+
 [[bin]]
 name = "task"
 path = "src/main.rs"
@@ -17,3 +21,7 @@ fern = { version = "0.6", features = ["colored"] }
 
 regex = "1"
 lazy_static = "1"
+
+figment = { version = "0.10", features = ["toml", "env"] }
+serde = { version = "=1.0.136", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
