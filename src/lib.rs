@@ -1,8 +1,5 @@
-use std::{collections::HashMap, env, error::Error};
-
 use clap::Parser;
-use log::{error, warn};
-use parse::ast::Namespace;
+use log::error;
 use thiserror::Error;
 
 pub mod cli;
@@ -13,16 +10,30 @@ pub mod parse;
 
 #[derive(Error, Debug)]
 pub enum TaskLangError {
-    #[error("Error while loading configuration (make sure the task.toml is valid!):\n{0:?}")]
+    #[error(
+        "Error while loading configuration (make sure the task.toml is valid!){}", print_err(.0)
+    )]
     ConfigError(anyhow::Error),
-    #[error("Error while parsing module '{0}' at '{1}':\n{2:?}")]
+    #[error("Error while parsing module '{0}' at '{1}'{}", print_err(.2))]
     ParserError(String, String, anyhow::Error),
-    #[error("Error while resolving task '{0}':\n{1:?}")]
+    #[error("Error while adding module '{0}' at '{1}'{}", print_err(.2))]
+    NamespaceError(String, String, anyhow::Error),
+    #[error("Error while resolving task '{0}'{}", print_err(.1))]
     ResolveError(String, anyhow::Error),
-    #[error("Error while analising task '{0}':\n{1:?}")]
+    #[error("Error while analising task '{0}'{}", print_err(.1))]
     StaticAnalysisError(String, anyhow::Error),
-    #[error("Error while executing task '{0}':\n{1:?}")]
+    #[error("Error while executing task '{0}'{}", print_err(.1))]
     ExecutionError(String, anyhow::Error),
+}
+
+fn print_err(error: &anyhow::Error) -> String {
+    let mut repr: String = "\ncaused by:\n\n".into();
+    let mut counter = 0;
+    for source in error.chain() {
+        repr += &format!("\t#{}: {}\n", counter, source);
+        counter += 1;
+    }
+    repr
 }
 
 pub fn run() -> Result<(), TaskLangError> {
@@ -32,20 +43,15 @@ pub fn run() -> Result<(), TaskLangError> {
 
     let task = &cli.task;
 
-    let mut root_namespace = Namespace {
-        name: "root".into(),
-        children: HashMap::new(),
-        namespace_type: parse::ast::NamespaceType::Collection,
-    };
+    let mut root_namespace = interpreter::RootNamespace::new();
 
     for (name, module) in &config.module {
         let location = &module.location;
         let namespace = parse::load_and_parse(location)
             .map_err(|err| TaskLangError::ParserError(name.into(), location.into(), err))?;
-        root_namespace.children.insert(
-            name.into(),
-            parse::ast::NamespaceOrExecuteable::Namespace(namespace),
-        );
+        root_namespace
+            .add_root(namespace)
+            .map_err(|err| TaskLangError::NamespaceError(name.into(), location.into(), err))?;
     }
 
     let mut interpreter = interpreter::Interpreter::new(root_namespace);

@@ -1,11 +1,8 @@
-use anyhow::Context;
 use thiserror::Error;
 
-use crate::parse::ast::Namespace;
-
+pub use self::namespace::RootNamespace;
 use self::{
     executor::{get_executor, Executor},
-    namespace::NamespaceResolver,
     stack::{RcStack, Stack},
 };
 
@@ -27,12 +24,12 @@ struct ExecutionUnit {
 }
 
 pub struct Interpreter {
-    root_namespace: Namespace,
+    root_namespace: RootNamespace,
     execution_unit: Option<ExecutionUnit>,
 }
 
 impl Interpreter {
-    pub fn new(root: Namespace) -> Self {
+    pub fn new(root: RootNamespace) -> Self {
         Self {
             root_namespace: root,
             execution_unit: None,
@@ -42,9 +39,7 @@ impl Interpreter {
     pub fn resolve(&mut self, task_name: &str) -> anyhow::Result<()> {
         let task_name_vec: Vec<&str> = task_name.split(".").collect();
 
-        let resolver = NamespaceResolver::new(&self.root_namespace);
-
-        let executeable = resolver.resolve(&task_name_vec)?;
+        let executeable = self.root_namespace.resolve(&task_name_vec)?;
 
         let stack: RcStack = Stack::new().into();
         let executor = get_executor(executeable.clone(), stack.clone())?;

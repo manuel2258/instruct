@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use anyhow::Context;
 use thiserror::Error;
 
 use crate::parse::ast::{Executeable, Namespace, NamespaceOrExecuteable};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum NamespaceError {
     #[error("searching '{0}' as '{1}' is invalid and should never happen!")]
     InvalidSearch(String, String),
@@ -58,5 +60,264 @@ impl<'a> NamespaceResolver<'a> {
             }
             None => Err(NamespaceError::NotFound(next_part.into(), current_part.into()).into()),
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum RootNamespaceError {
+    #[error("The module name '{0}' is already used")]
+    ModuleNameAlreadyUsed(String),
+    #[error("A module with the name '{0}' could not be found")]
+    ModuleNotFound(String),
+    #[error("Tried to search an empty name, this should not happen")]
+    EmptySearchName,
+}
+
+pub struct RootNamespace {
+    namespaces: HashMap<String, Namespace>,
+}
+
+impl RootNamespace {
+    pub fn new() -> RootNamespace {
+        RootNamespace {
+            namespaces: HashMap::new(),
+        }
+    }
+
+    pub fn add_root(&mut self, namespace: Namespace) -> anyhow::Result<()> {
+        if self.namespaces.contains_key(&namespace.name) {
+            return Err(RootNamespaceError::ModuleNameAlreadyUsed(namespace.name.into()).into());
+        }
+        assert!(self
+            .namespaces
+            .insert(namespace.name.clone(), namespace)
+            .is_none());
+
+        Ok(())
+    }
+
+    pub fn resolve(&self, name_parts: &[&str]) -> anyhow::Result<&Executeable> {
+        if let Some(module_name) = name_parts.get(0) {
+            match self.namespaces.get(*module_name) {
+                Some(namespace) => NamespaceResolver::new(namespace).resolve(name_parts),
+                None => Err(RootNamespaceError::ModuleNotFound((*module_name).into()).into()),
+            }
+        } else {
+            Err(RootNamespaceError::EmptySearchName.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::interpreter::namespace::NamespaceError;
+    use crate::parse::ast::Executeable;
+    use crate::parse::ast::ExecuteableType;
+    use crate::parse::ast::Namespace;
+    use crate::parse::ast::NamespaceOrExecuteable;
+    use crate::parse::ast::NamespaceType;
+
+    use super::NamespaceResolver;
+
+    fn get_collection(name: &'static str, mut children: Vec<NamespaceOrExecuteable>) -> Namespace {
+        Namespace {
+            name: name.into(),
+            namespace_type: NamespaceType::Collection,
+            children: children
+                .drain(..)
+                .map(|val| (val.get_name().to_owned(), val))
+                .collect(),
+        }
+    }
+
+    fn get_executeable(name: &'static str) -> NamespaceOrExecuteable {
+        NamespaceOrExecuteable::Executeable(Executeable {
+            output_variables: None,
+            name: name.into(),
+            options: None,
+            executeable_type: ExecuteableType::Command { cmd: "".into() },
+        })
+    }
+
+    fn split(value: &'static str) -> Vec<&str> {
+        value.split(".").collect()
+    }
+
+    #[test]
+    fn ok_resolve_1_depth() {
+        let namespace = get_collection("root", vec![get_executeable("task")]);
+
+        let name = split("root.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_ok());
+        let task = res.unwrap();
+
+        assert_eq!(&task.name, "task");
+    }
+
+    #[test]
+    fn ok_resolve_1_depth_multiple_childs() {
+        let namespace = get_collection(
+            "root",
+            vec![get_executeable("task"), get_executeable("other-task")],
+        );
+
+        let name = split("root.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_ok());
+        let task = res.unwrap();
+
+        assert_eq!(&task.name, "task");
+    }
+
+    #[test]
+    fn ok_resolve_2_depth() {
+        let namespace = get_collection(
+            "root",
+            vec![NamespaceOrExecuteable::Namespace(get_collection(
+                "collection",
+                vec![get_executeable("task")],
+            ))],
+        );
+
+        let name = split("root.collection.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_ok());
+        let task = res.unwrap();
+
+        assert_eq!(&task.name, "task");
+    }
+
+    #[test]
+    fn ok_resolve_4_depth() {
+        let namespace = get_collection(
+            "root",
+            vec![NamespaceOrExecuteable::Namespace(get_collection(
+                "collection1",
+                vec![NamespaceOrExecuteable::Namespace(get_collection(
+                    "collection2",
+                    vec![NamespaceOrExecuteable::Namespace(get_collection(
+                        "collection3",
+                        vec![get_executeable("task")],
+                    ))],
+                ))],
+            ))],
+        );
+
+        let name = split("root.collection1.collection2.collection3.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_ok());
+        let task = res.unwrap();
+
+        assert_eq!(&task.name, "task");
+    }
+
+    #[test]
+    fn ok_resolve_4_depth_multiple_childs() {
+        let namespace = get_collection(
+            "root",
+            vec![
+                get_executeable("other-task"),
+                NamespaceOrExecuteable::Namespace(get_collection(
+                    "collection1",
+                    vec![
+                        NamespaceOrExecuteable::Namespace(get_collection(
+                            "collection2",
+                            vec![
+                                get_executeable("other-task"),
+                                get_executeable("another-task"),
+                                NamespaceOrExecuteable::Namespace(get_collection(
+                                    "collection3",
+                                    vec![
+                                        get_executeable("other-task"),
+                                        get_executeable("another-task"),
+                                        get_executeable("task"),
+                                    ],
+                                )),
+                            ],
+                        )),
+                        get_executeable("other-task"),
+                    ],
+                )),
+            ],
+        );
+
+        let name = split("root.collection1.collection2.collection3.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_ok());
+        let task = res.unwrap();
+
+        assert_eq!(&task.name, "task");
+    }
+
+    #[test]
+    fn nok_task_is_collection() {
+        let namespace = get_collection(
+            "root",
+            vec![
+                get_executeable("other-task"),
+                NamespaceOrExecuteable::Namespace(get_collection("collection", vec![])),
+            ],
+        );
+
+        let name = split("root.collection");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+            res.unwrap_err().downcast::<NamespaceError>().unwrap(),
+            NamespaceError::NotAExecuteable("collection".into())
+        );
+    }
+
+    #[test]
+    fn nok_collection_is_executeable() {
+        let namespace = get_collection("root", vec![get_executeable("collection")]);
+
+        let name = split("root.collection.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+            res.unwrap_err().downcast::<NamespaceError>().unwrap(),
+            NamespaceError::NotANamespace("collection".into())
+        );
+    }
+
+    #[test]
+    fn nok_not_found_other_name() {
+        let namespace = get_collection("root", vec![get_executeable("other-task")]);
+
+        let name = split("root.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+            res.unwrap_err().downcast::<NamespaceError>().unwrap(),
+            NamespaceError::NotFound("task".into(), "root".into())
+        );
+    }
+
+    #[test]
+    fn nok_not_found_empty() {
+        let namespace = get_collection("root", vec![]);
+
+        let name = split("root.task");
+        let res = NamespaceResolver::new(&namespace).resolve(&name);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+            res.unwrap_err().downcast::<NamespaceError>().unwrap(),
+            NamespaceError::NotFound("task".into(), "root".into())
+        );
     }
 }
