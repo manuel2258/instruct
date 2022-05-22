@@ -104,7 +104,7 @@ mod tests {
 
         #[test]
         fn nok_special_char1() {
-            assert_ne!(
+            assert_eq!(
                 variable::<Error<&str>>("var-name"),
                 Ok(("", "var-name".into()))
             );

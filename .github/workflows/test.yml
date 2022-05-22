@@ -21,7 +21,14 @@ jobs:
         run: ls -al
 
       - name: Collect coverage data
-        run: cargo llvm-cov nextest
+        run: cargo llvm-cov nextest --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+
   clippy_check:
     name: clippy check
     runs-on: ubuntu-latest

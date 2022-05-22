@@ -4,10 +4,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error(
-        "a variable '{0}' that was allocated but not set, was accessed, this should not happen!"
-    )]
-    UnsetVariableAccessed(String),
     #[error("a variable '{0}' that not allocated was accessed, this should not happen!")]
     UnallocatedVariableAccessed(String),
     #[error("tried to access undefined variable '{0}'")]
