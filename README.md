@@ -1,5 +1,7 @@
 # Task Lang
 
+[![codecov](https://codecov.io/gh/manuel2258/task_lang/branch/master/graph/badge.svg?token=JORKMY1BBV)](https://codecov.io/gh/manuel2258/task_lang)
+
 A language to write general purpose makefile like tasks which are powerfull and reuseable
 
 ## Status
