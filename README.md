@@ -51,7 +51,9 @@ collection as test: {
 };
 ```
 
-Parts of this can already be executed using cargo!  
+Although the above example is the goal, you can already execute some working [examples](./examples/):
+
 ```sh
-cargo run ./examples/example.task simple.sample_task
+cargo run variables.interpolate.stdout
+cargo run variables.interpolate.exit-code
 ```
