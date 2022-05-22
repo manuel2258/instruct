@@ -1,13 +1,17 @@
-use std::env;
+use std::str::FromStr;
 
-use clap::Parser;
 use fern::{
     self,
     colors::{Color, ColoredLevelConfig},
 };
-use log::{error, warn, Level, LevelFilter};
+use log::{Level, LevelFilter};
 
-pub fn setup_logger() -> anyhow::Result<()> {
+pub fn setup_logger(log_level: &Option<String>) -> anyhow::Result<()> {
+    let level = match log_level {
+        Some(val) => LevelFilter::from_str(val).unwrap(),
+        None => LevelFilter::Info,
+    };
+
     let colors = ColoredLevelConfig::new()
         .error(Color::BrightRed)
         .warn(Color::Magenta)
@@ -33,7 +37,7 @@ pub fn setup_logger() -> anyhow::Result<()> {
                 ))
             }
         })
-        .level(LevelFilter::Debug)
+        .level(level)
         .chain(std::io::stdout())
         .apply()?;
 

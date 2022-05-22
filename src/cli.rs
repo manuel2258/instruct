@@ -8,8 +8,8 @@ pub struct Cli {
     #[clap()]
     pub task: String,
 
-    #[clap(short, long, default_value_t = 1)]
-    pub log_level: u8,
+    #[clap(short, long)]
+    pub log_level: Option<String>,
 
     #[clap(short, long)]
     pub task_file: Option<PathBuf>,

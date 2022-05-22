@@ -60,8 +60,8 @@ fn single_variable_binding<'a, E: ParseError<&'a str>>(
 
 pub fn variable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
     let (i, name) = recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0_count(alt((alphanumeric1, tag("_")))),
+        alt((alpha1, tag("_"), tag("-"))),
+        many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
     ))(i)?;
 
     Ok((i, name.into()))

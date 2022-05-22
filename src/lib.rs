@@ -41,6 +41,8 @@ pub fn run() -> Result<(), TaskLangError> {
     let config =
         config::Config::load(cli.task_file).map_err(|err| TaskLangError::ConfigError(err))?;
 
+    logger::setup_logger(&cli.log_level).unwrap();
+
     let task = &cli.task;
 
     let mut root_namespace = interpreter::RootNamespace::new();

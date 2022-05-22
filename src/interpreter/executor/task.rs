@@ -71,7 +71,7 @@ impl TaskExecutor {
     }
 
     pub fn error_context(&self, stage: &'static str) -> String {
-        format!("exeucting task '{}' at stage '{}'", self.name, stage)
+        format!("executing task '{}' at stage '{}'", self.name, stage)
     }
 
     fn convert_and_init_executeable(

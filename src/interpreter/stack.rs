@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(
-        "a variable '{0}' that was allocated but not set was accessed, this should not happen!"
+        "a variable '{0}' that was allocated but not set, was accessed, this should not happen!"
     )]
     UnsetVariableAccessed(String),
     #[error("a variable '{0}' that not allocated was accessed, this should not happen!")]
@@ -40,11 +40,10 @@ impl Stack {
     }
 
     pub fn get(&self, name: &str) -> anyhow::Result<String> {
-        trace!("Getting '{}' from stack {}", name, self.height);
+        trace!("Getting '{}' from stack {}@{:p}", name, self.height, self);
         match self.variables.get(name) {
             Some(Some(val)) => Ok(val.into()),
-            Some(None) => Err(Error::UnsetVariableAccessed(name.into()).into()),
-            None => match &self.parent {
+            Some(None) | None => match &self.parent {
                 Some(child) => child.borrow().get(name),
                 None => Err(Error::UnallocatedVariableAccessed(name.into()).into()),
             },
@@ -54,18 +53,20 @@ impl Stack {
     pub fn set(&mut self, name: String, value: String) -> anyhow::Result<()> {
         if value.len() > 10 {
             trace!(
-                "Setting '{}' to {:?}..{:?}' for stack {}",
+                "Setting '{}' to {:?}..{:?}' for stack {}@{:p}",
                 &name,
-                &value[..5],
-                &value[value.len() - 5..],
-                self.height
+                &value[..10],
+                &value[value.len() - 10..],
+                self.height,
+                self
             );
         } else {
             trace!(
-                "Setting '{}' to {:?} for stack {}",
+                "Setting '{}' to {:?} for stack {}@{:p}",
                 &name,
                 &value,
-                self.height
+                self.height,
+                self
             );
         }
         if let None = self.variables.insert(name.clone(), Some(value)) {
@@ -75,12 +76,22 @@ impl Stack {
     }
 
     pub fn allocate(&mut self, name: String) {
-        trace!("Allocating '{}' for stack {}", &name, self.height);
+        trace!(
+            "Allocating '{}' for stack {}@{:p}",
+            &name,
+            self.height,
+            self
+        );
         self.variables.insert(name, None);
     }
 
     pub fn assert_allocated(&self, name: &str) -> anyhow::Result<()> {
-        trace!("Asserting allocation '{}' for stack {}", &name, self.height);
+        trace!(
+            "Asserting allocation '{}' for stack {}@{:p}",
+            &name,
+            self.height,
+            self
+        );
         match self.variables.contains_key(name) {
             true => Ok(()),
             false => match &self.parent {

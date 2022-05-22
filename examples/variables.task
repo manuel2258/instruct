@@ -1,0 +1,21 @@
+module as variables;
+
+collection as interpolate: {
+    task as stdout: {
+        let (pre_var: var) from block as pre: {
+            let (var: stdout) from run with (trim_stdout): echo pre;
+            run: echo dyn_${var};
+        };
+        let (stdout) from run as main: echo "interpolated '${pre_var}' used in main";
+        block as post: {
+            let (stdout) from run with (stdin: stdout): sed s/main/post/g;
+            run: echo ${stdout};
+        };
+    };
+
+    task as exit-code: {
+        let (status1: status) from run as pre: cat Cargo.toml;
+        let (status2: status) from run as main: cat random_file.json;
+        run as post: echo "cat Cargo.toml: $${status1}, cat random_file.json: $${status2}";
+    };
+};

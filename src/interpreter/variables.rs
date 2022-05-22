@@ -1,3 +1,5 @@
+use log::trace;
+
 use crate::parse::ast::{VariableBinding, VariableBindings};
 
 use super::stack::RcStack;
@@ -40,6 +42,11 @@ impl Variables {
                     VariableBinding::Single(val) => (val, val),
                     VariableBinding::Dual(parent_var, child_var) => (parent_var, child_var),
                 };
+                trace!(
+                    "Carring over variable from '{}' to '{}'",
+                    &child_name,
+                    &parent_name
+                );
                 let value = child_stack.borrow().get(child_name)?;
                 parent_stack
                     .borrow_mut()

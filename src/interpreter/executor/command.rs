@@ -17,21 +17,29 @@ pub struct CommandExecutor {
     cmd: String,
     interpolateable_cmd: Option<Interpolateable>,
     stdin_variable: Option<String>,
+    trim_stdout: bool,
+    trim_stderr: bool,
     stack: Option<RcStack>,
 }
 
 impl CommandExecutor {
     pub fn new(input: Executeable) -> anyhow::Result<Self> {
         if let ExecuteableType::Command { cmd } = input.executeable_type {
-            let stdin_variable: Option<String> = match input.options {
-                Some(bindings) => bindings.find("stdin").map(|val| val.into()),
-                None => None,
+            let (stdin_variable, trim_stdout, trim_stderr) = match input.options {
+                Some(bindings) => (
+                    bindings.find("stdin").map(|val| val.into()),
+                    bindings.find("trim_stdout").is_some(),
+                    bindings.find("trim_stderr").is_some(),
+                ),
+                None => (None, false, false),
             };
             let mut exe = CommandExecutor {
                 variables: Variables::new(input.output_variables),
                 cmd,
                 interpolateable_cmd: None,
                 stdin_variable,
+                trim_stdout,
+                trim_stderr,
                 stack: None,
             };
             exe.interpolateable_cmd = Interpolateable::new(&exe.cmd);
@@ -111,8 +119,14 @@ impl Executor for CommandExecutor {
             let output = process
                 .wait_with_output()
                 .with_context(|| self.error_context())?;
-            let stdout: String = str::from_utf8(&output.stdout).unwrap().into();
-            let stderr: String = str::from_utf8(&output.stderr).unwrap().into();
+            let mut stdout: String = str::from_utf8(&output.stdout).unwrap().into();
+            if self.trim_stdout {
+                stdout = stdout.trim().into();
+            }
+            let mut stderr: String = str::from_utf8(&output.stderr).unwrap().into();
+            if self.trim_stderr {
+                stderr = stderr.trim().into();
+            }
             let status: String = output.status.code().unwrap().to_string();
 
             if !output.status.success() {

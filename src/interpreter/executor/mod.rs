@@ -3,11 +3,13 @@ use thiserror::Error;
 use crate::interpreter::stack::Stack;
 use crate::parse::ast::{Executeable, ExecuteableType};
 
+use self::block::BlockExecutor;
 use self::command::CommandExecutor;
 use self::task::TaskExecutor;
 
 use super::stack::RcStack;
 
+mod block;
 mod command;
 mod task;
 
@@ -33,6 +35,7 @@ pub fn get_executor<'a>(input: Executeable, _stack: RcStack) -> anyhow::Result<D
     match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),
         ExecuteableType::Task { .. } => Ok(Box::new(TaskExecutor::new(input)?)),
+        ExecuteableType::Block { .. } => Ok(Box::new(BlockExecutor::new(input)?)),
         exec_type => Err(ExecutorError::NotImplemented(exec_type.clone()).into()),
     }
 }
