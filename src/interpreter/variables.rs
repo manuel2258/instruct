@@ -48,9 +48,7 @@ impl Variables {
                     &parent_name
                 );
                 let value = child_stack.borrow().get(child_name)?;
-                parent_stack
-                    .borrow_mut()
-                    .set(parent_name.into(), value.into())?;
+                parent_stack.borrow_mut().set(parent_name.into(), value)?;
             }
         }
         Ok(())

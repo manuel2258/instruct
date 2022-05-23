@@ -86,7 +86,7 @@ impl RootNamespace {
 
     pub fn add_root(&mut self, namespace: Namespace) -> anyhow::Result<()> {
         if self.namespaces.contains_key(&namespace.name) {
-            return Err(RootNamespaceError::ModuleNameAlreadyUsed(namespace.name.into()).into());
+            return Err(RootNamespaceError::ModuleNameAlreadyUsed(namespace.name).into());
         }
         assert!(self
             .namespaces
@@ -105,6 +105,12 @@ impl RootNamespace {
         } else {
             Err(RootNamespaceError::EmptySearchName.into())
         }
+    }
+}
+
+impl Default for RootNamespace {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

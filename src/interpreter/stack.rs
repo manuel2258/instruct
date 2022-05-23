@@ -65,8 +65,8 @@ impl Stack {
                 self
             );
         }
-        if let None = self.variables.insert(name.clone(), Some(value)) {
-            return Err(Error::UnallocatedVariableAccessed(name.into()).into());
+        if self.variables.insert(name.clone(), Some(value)).is_none() {
+            return Err(Error::UnallocatedVariableAccessed(name).into());
         }
         Ok(())
     }
@@ -98,6 +98,12 @@ impl Stack {
     }
 }
 
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl From<Vec<(&'static str, &'static str)>> for Stack {
     fn from(values: Vec<(&str, &str)>) -> Stack {
         let mut stack = Stack::new();
@@ -111,8 +117,8 @@ impl From<Vec<(&'static str, &'static str)>> for Stack {
     }
 }
 
-impl Into<RcStack> for Stack {
-    fn into(self) -> RcStack {
-        Rc::new(RefCell::new(self))
+impl From<Stack> for RcStack {
+    fn from(stack: Stack) -> RcStack {
+        Rc::new(RefCell::new(stack))
     }
 }

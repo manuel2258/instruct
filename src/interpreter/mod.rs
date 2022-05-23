@@ -6,6 +6,7 @@ use self::{
     stack::{RcStack, Stack},
 };
 
+mod context;
 mod executor;
 mod interpolateable;
 mod namespace;
@@ -37,7 +38,7 @@ impl Interpreter {
     }
 
     pub fn resolve(&mut self, task_name: &str) -> anyhow::Result<()> {
-        let task_name_vec: Vec<&str> = task_name.split(".").collect();
+        let task_name_vec: Vec<&str> = task_name.split('.').collect();
 
         let executeable = self.root_namespace.resolve(&task_name_vec)?;
 

@@ -28,24 +28,21 @@ pub enum TaskLangError {
 
 fn print_err(error: &anyhow::Error) -> String {
     let mut repr: String = "\ncaused by:\n\n".into();
-    let mut counter = 0;
-    for source in error.chain() {
+    for (counter, source) in error.chain().enumerate() {
         repr += &format!("\t#{}: {}\n", counter, source);
-        counter += 1;
     }
     repr
 }
 
 pub fn run() -> Result<(), TaskLangError> {
     let cli = cli::Cli::parse();
-    let config =
-        config::Config::load(cli.task_file).map_err(|err| TaskLangError::ConfigError(err))?;
+    let config = config::Config::load(cli.task_file).map_err(TaskLangError::ConfigError)?;
 
     logger::setup_logger(&cli.log_level).unwrap();
 
     let task = &cli.task;
 
-    let mut root_namespace = interpreter::RootNamespace::new();
+    let mut root_namespace = interpreter::RootNamespace::default();
 
     for (name, module) in &config.module {
         let location = &module.location;

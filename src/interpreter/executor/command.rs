@@ -96,7 +96,7 @@ impl Executor for CommandExecutor {
 
     fn execute(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
         if let Some(mut child_stack) = self.stack.clone() {
-            let interpolated = self.interpolate(&mut parent_stack)?;
+            let interpolated = self.interpolate(&parent_stack)?;
             let mut cmd_iter = interpolated.split(' ');
             let program = cmd_iter.next().unwrap();
             let args: Vec<&str> = cmd_iter.collect();

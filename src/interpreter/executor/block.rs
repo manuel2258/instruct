@@ -53,16 +53,15 @@ impl Executor for BlockExecutor {
         Ok(())
     }
 
+    #[allow(clippy::needless_collect)]
     fn execute(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
         if let Some(mut child_stack) = self.stack.take() {
             debug!("{}: {{", &self.name);
-            let mut counter = 0;
             let executors: Vec<DynExecutor> = self.executors.drain(..).collect();
-            for mut executor in executors {
+            for (counter, mut executor) in executors.into_iter().enumerate() {
                 executor
                     .execute(child_stack.clone())
                     .with_context(|| self.error_context(counter))?;
-                counter += 1;
             }
             self.variables
                 .carry_over(&mut parent_stack, &mut child_stack)?;

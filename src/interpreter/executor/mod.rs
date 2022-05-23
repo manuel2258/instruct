@@ -31,7 +31,7 @@ pub trait Executor {
 
 type DynExecutor = Box<dyn Executor>;
 
-pub fn get_executor<'a>(input: Executeable, _stack: RcStack) -> anyhow::Result<DynExecutor> {
+pub fn get_executor(input: Executeable, _stack: RcStack) -> anyhow::Result<DynExecutor> {
     match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),
         ExecuteableType::Task { .. } => Ok(Box::new(TaskExecutor::new(input)?)),

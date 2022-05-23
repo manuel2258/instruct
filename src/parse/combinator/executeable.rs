@@ -39,7 +39,7 @@ pub fn executeable_or<'a, E: ParseError<&'a str>>(
 pub fn executor_name<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
     let (i, _) = preceded(space0, tag("as"))(i)?;
     let (i, name) = preceded(space0, variable)(i)?;
-    Ok((i, name.into()))
+    Ok((i, name))
 }
 
 fn command_executeable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&str, Executeable, E> {

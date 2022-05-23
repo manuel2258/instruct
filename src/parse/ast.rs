@@ -64,10 +64,10 @@ impl VariableBindings {
         for binding in &self.bindings {
             match binding {
                 VariableBinding::Single(binding_name) if binding_name == name => {
-                    return Some(&binding_name)
+                    return Some(binding_name)
                 }
                 VariableBinding::Dual(binding_name, value) if binding_name == name => {
-                    return Some(&value)
+                    return Some(value)
                 }
                 _ => (),
             }

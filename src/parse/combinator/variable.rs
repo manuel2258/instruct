@@ -47,7 +47,7 @@ fn dual_variable_binding<'a, E: ParseError<&'a str>>(
     let (i, output) = preceded(space0, variable)(i)?;
     let (i, _) = preceded(space0, char(':'))(i)?;
     let (i, input) = preceded(space0, variable)(i)?;
-    Ok((i, VariableBinding::Dual(output.into(), input.into())))
+    Ok((i, VariableBinding::Dual(output, input)))
 }
 
 fn single_variable_binding<'a, E: ParseError<&'a str>>(
@@ -55,7 +55,7 @@ fn single_variable_binding<'a, E: ParseError<&'a str>>(
 ) -> IResult<&'a str, VariableBinding, E> {
     let (i, input) = preceded(space0, variable)(i)?;
     not(preceded(space0, char(':')))(i)?;
-    Ok((i, VariableBinding::Single(input.into())))
+    Ok((i, VariableBinding::Single(input)))
 }
 
 pub fn variable<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
