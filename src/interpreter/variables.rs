@@ -2,7 +2,7 @@ use log::trace;
 
 use crate::parse::ast::{VariableBinding, VariableBindings};
 
-use super::stack::RcStack;
+use super::stack::StackRef;
 
 pub struct Variables {
     bindings: Option<VariableBindings>,
@@ -13,10 +13,11 @@ impl Variables {
         Self { bindings }
     }
 
+    /// Checks whether all variables, based on the bindings, are allocated in the from_stack and allocates them in the to_stack.
     pub fn allocate_and_check_all(
         &self,
-        parent_stack: &mut RcStack,
-        child_stack: &mut RcStack,
+        to_stack: &mut StackRef,
+        from_stack: &mut StackRef,
     ) -> anyhow::Result<()> {
         if let Some(bindings) = &self.bindings {
             for output in &bindings.bindings {
@@ -24,8 +25,8 @@ impl Variables {
                     VariableBinding::Single(val) => (val, val),
                     VariableBinding::Dual(parent_var, child_var) => (parent_var, child_var),
                 };
-                child_stack.borrow().assert_allocated(child_name)?;
-                parent_stack.borrow_mut().allocate(parent_name.into());
+                from_stack.borrow().assert_allocated(child_name)?;
+                to_stack.borrow_mut().allocate(parent_name.into());
             }
         }
         Ok(())
@@ -33,8 +34,8 @@ impl Variables {
 
     pub fn carry_over(
         &mut self,
-        parent_stack: &mut RcStack,
-        child_stack: &mut RcStack,
+        to_stack: &mut StackRef,
+        from_stack: &mut StackRef,
     ) -> anyhow::Result<()> {
         if let Some(bindings) = &self.bindings {
             for output in &bindings.bindings {
@@ -47,8 +48,8 @@ impl Variables {
                     &child_name,
                     &parent_name
                 );
-                let value = child_stack.borrow().get(child_name)?;
-                parent_stack.borrow_mut().set(parent_name.into(), value)?;
+                let value = from_stack.borrow().get(child_name)?;
+                to_stack.borrow_mut().set(parent_name.into(), value)?;
             }
         }
         Ok(())

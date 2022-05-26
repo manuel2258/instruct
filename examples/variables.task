@@ -1,16 +1,21 @@
 module as variables;
 
 collection as interpolate: {
-    task as stdout: {
+    let (final_stdout: stdout) from task as stdout: {
         let (pre_var: var) from block as pre: {
             let (var: stdout) from run with (trim_stdout): echo pre;
             run: echo dyn_${var};
         };
-        let (stdout) from run as main: echo "interpolated '${pre_var}' used in main";
+        let (stdout) from run with (trim_stdout) as main: echo interpolated '${pre_var}' used in main;
         block as post: {
             let (stdout) from run with (stdin: stdout): sed s/main/post/g;
             run: echo ${stdout};
         };
+    };
+
+    task as call: {
+        let (final_stdout) from call as main: variables.interpolate.stdout;
+        run as post: echo ${final_stdout} used after call;
     };
 
     task as exit-code: {

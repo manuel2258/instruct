@@ -5,8 +5,9 @@ use std::str;
 use anyhow::Context;
 use log::{debug, error, info, warn};
 
+use crate::interpreter::context::ContextRef;
 use crate::interpreter::interpolateable::Interpolateable;
-use crate::interpreter::stack::RcStack;
+use crate::interpreter::stack::StackRef;
 use crate::interpreter::variables::Variables;
 use crate::parse::ast::{Executeable, ExecuteableType};
 
@@ -19,7 +20,7 @@ pub struct CommandExecutor {
     stdin_variable: Option<String>,
     trim_stdout: bool,
     trim_stderr: bool,
-    stack: Option<RcStack>,
+    stack: Option<StackRef>,
 }
 
 impl CommandExecutor {
@@ -49,7 +50,7 @@ impl CommandExecutor {
         }
     }
 
-    pub fn interpolate(&self, stack: &RcStack) -> anyhow::Result<String> {
+    pub fn interpolate(&self, stack: &StackRef) -> anyhow::Result<String> {
         match &self.interpolateable_cmd {
             None => Ok(self.cmd.clone()),
             Some(inter) => {
@@ -68,7 +69,7 @@ impl CommandExecutor {
 }
 
 impl Executor for CommandExecutor {
-    fn init(&mut self, mut stack: RcStack) -> anyhow::Result<()> {
+    fn init(&mut self, mut stack: StackRef, _ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(interpolateable) = &self.interpolateable_cmd {
             interpolateable
                 .assert_variables_allocated(&stack)
@@ -79,7 +80,7 @@ impl Executor for CommandExecutor {
             stack.borrow().assert_allocated(stdin_variable)?;
         }
 
-        let mut child_stack: RcStack = Stack::inherit_new(&stack).into();
+        let mut child_stack: StackRef = Stack::inherit_new(&stack).into();
         {
             let mut child_stack_ref = child_stack.borrow_mut();
             child_stack_ref.allocate("stdout".into());
@@ -94,7 +95,7 @@ impl Executor for CommandExecutor {
         Ok(())
     }
 
-    fn execute(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
+    fn execute(&mut self, mut parent_stack: StackRef, _ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(mut child_stack) = self.stack.clone() {
             let interpolated = self.interpolate(&parent_stack)?;
             let mut cmd_iter = interpolated.split(' ');

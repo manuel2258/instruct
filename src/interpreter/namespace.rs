@@ -73,6 +73,7 @@ pub enum RootNamespaceError {
     EmptySearchName,
 }
 
+#[derive(Clone)]
 pub struct RootNamespace {
     namespaces: HashMap<String, Namespace>,
 }
@@ -94,6 +95,11 @@ impl RootNamespace {
             .is_none());
 
         Ok(())
+    }
+
+    pub fn resolve_name(&self, target_name: &str) -> anyhow::Result<&Executeable> {
+        let target_name_vec: Vec<&str> = target_name.split('.').collect();
+        self.resolve(&target_name_vec)
     }
 
     pub fn resolve(&self, name_parts: &[&str]) -> anyhow::Result<&Executeable> {

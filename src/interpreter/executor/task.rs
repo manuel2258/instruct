@@ -4,9 +4,10 @@ use anyhow::Context;
 use log::{error, info};
 use thiserror::Error;
 
-use crate::interpreter::stack::RcStack;
+use crate::interpreter::context::ContextRef;
+use crate::interpreter::stack::StackRef;
 use crate::interpreter::variables::Variables;
-use crate::parse::ast::{Executeable, ExecuteableType};
+use crate::parse::ast::{Executeable, ExecuteableType, VariableBindings};
 
 use super::{get_executor, DynExecutor, Executor, ExecutorError, Stack};
 
@@ -26,12 +27,13 @@ struct Executors {
     pre: Option<DynExecutor>,
     main: DynExecutor,
     post: Option<DynExecutor>,
-    stack: RcStack,
+    stack: StackRef,
 }
 
 pub struct TaskExecutor {
     name: String,
     variables: Variables,
+    arguments: Variables,
     executeables: Option<Executeables>,
     executors: Option<Executors>,
 }
@@ -48,6 +50,7 @@ impl TaskExecutor {
             Ok(TaskExecutor {
                 name: input.name,
                 variables: Variables::new(input.output_variables),
+                arguments: Variables::new(input.options),
                 executeables: Some(Executeables {
                     pre: pre_executeable,
                     main: main_executeable,
@@ -75,32 +78,46 @@ impl TaskExecutor {
     }
 
     fn convert_and_init_executeable(
-        stack: &mut RcStack,
+        stack: &mut StackRef,
         executeable: Option<Executeable>,
+        ctx: ContextRef,
     ) -> anyhow::Result<Option<DynExecutor>> {
         let mut executor = match executeable {
             Some(executeable) => get_executor(executeable, stack.clone())?,
             None => return Ok(None),
         };
 
-        executor.init(stack.clone())?;
+        executor.init(stack.clone(), ctx.clone())?;
 
         Ok(Some(executor))
     }
 }
 
 impl Executor for TaskExecutor {
-    fn init(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
+    fn init(&mut self, mut parent_stack: StackRef, ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(executeables) = self.executeables.take() {
-            let mut child_stack: RcStack = Stack::inherit_new(&parent_stack).into();
+            let mut child_stack: StackRef = Stack::new().into();
 
-            let pre = Self::convert_and_init_executeable(&mut child_stack, executeables.pre)?;
+            self.arguments
+                .allocate_and_check_all(&mut child_stack, &mut parent_stack)
+                .with_context(|| self.error_context("check_args"))?;
+
+            let pre = Self::convert_and_init_executeable(
+                &mut child_stack,
+                executeables.pre,
+                ctx.clone(),
+            )?;
             let mut main = get_executor(executeables.main, child_stack.clone())?;
-            main.init(child_stack.clone())?;
-            let post = Self::convert_and_init_executeable(&mut child_stack, executeables.post)?;
+            main.init(child_stack.clone(), ctx.clone())?;
+            let post = Self::convert_and_init_executeable(
+                &mut child_stack,
+                executeables.post,
+                ctx.clone(),
+            )?;
 
             self.variables
-                .allocate_and_check_all(&mut parent_stack, &mut child_stack)?;
+                .allocate_and_check_all(&mut parent_stack, &mut child_stack)
+                .with_context(|| self.error_context("check_vars"))?;
 
             self.executors = Some(Executors {
                 pre,
@@ -115,21 +132,25 @@ impl Executor for TaskExecutor {
         }
     }
 
-    fn execute(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
+    fn execute(&mut self, mut parent_stack: StackRef, ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(mut executors) = self.executors.take() {
+            self.arguments
+                .carry_over(&mut executors.stack, &mut parent_stack)
+                .with_context(|| self.error_context("get_args"))?;
+
             info!("-> {}", &self.name);
             if let Some(mut pre) = executors.pre {
-                pre.execute(executors.stack.clone())
-                    .with_context(|| self.error_context("pre"))?;
+                pre.execute(executors.stack.clone(), ctx.clone())
+                    .with_context(|| self.error_context("executing_pre"))?;
             }
             executors
                 .main
-                .execute(executors.stack.clone())
-                .with_context(|| self.error_context("main"))?;
+                .execute(executors.stack.clone(), ctx.clone())
+                .with_context(|| self.error_context("executing_main"))?;
 
             if let Some(mut post) = executors.post {
-                post.execute(executors.stack.clone())
-                    .with_context(|| self.error_context("post"))?;
+                post.execute(executors.stack.clone(), ctx.clone())
+                    .with_context(|| self.error_context("executing_post"))?;
             }
 
             self.variables

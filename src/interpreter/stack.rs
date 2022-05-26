@@ -10,11 +10,11 @@ pub enum Error {
     UndefinedVariableAccessed(String),
 }
 
-pub type RcStack = Rc<RefCell<Stack>>;
+pub type StackRef = Rc<RefCell<Stack>>;
 
 pub struct Stack {
     variables: HashMap<String, Option<String>>,
-    parent: Option<RcStack>,
+    parent: Option<StackRef>,
     height: u16,
 }
 
@@ -27,7 +27,7 @@ impl Stack {
         }
     }
 
-    pub fn inherit_new(parent: &RcStack) -> Stack {
+    pub fn inherit_new(parent: &StackRef) -> Stack {
         Self {
             variables: HashMap::new(),
             parent: Some(parent.clone()),
@@ -117,8 +117,8 @@ impl From<Vec<(&'static str, &'static str)>> for Stack {
     }
 }
 
-impl From<Stack> for RcStack {
-    fn from(stack: Stack) -> RcStack {
+impl From<Stack> for StackRef {
+    fn from(stack: Stack) -> StackRef {
         Rc::new(RefCell::new(stack))
     }
 }

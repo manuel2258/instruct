@@ -1,7 +1,8 @@
 use anyhow::Context;
 use log::debug;
 
-use crate::interpreter::stack::RcStack;
+use crate::interpreter::context::ContextRef;
+use crate::interpreter::stack::StackRef;
 use crate::interpreter::variables::Variables;
 use crate::parse::ast::{Executeable, ExecuteableType};
 
@@ -12,7 +13,7 @@ pub struct BlockExecutor {
     variables: Variables,
     executeables: Vec<Executeable>,
     executors: Vec<DynExecutor>,
-    stack: Option<RcStack>,
+    stack: Option<StackRef>,
 }
 
 impl BlockExecutor {
@@ -36,12 +37,12 @@ impl BlockExecutor {
 }
 
 impl Executor for BlockExecutor {
-    fn init(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
-        let mut child_stack: RcStack = Stack::inherit_new(&parent_stack).into();
+    fn init(&mut self, mut parent_stack: StackRef, ctx: ContextRef) -> anyhow::Result<()> {
+        let mut child_stack: StackRef = Stack::inherit_new(&parent_stack).into();
 
         for executeable in self.executeables.drain(..) {
             let mut executor = get_executor(executeable, child_stack.clone())?;
-            executor.init(child_stack.clone())?;
+            executor.init(child_stack.clone(), ctx.clone())?;
             self.executors.push(executor);
         }
 
@@ -54,13 +55,13 @@ impl Executor for BlockExecutor {
     }
 
     #[allow(clippy::needless_collect)]
-    fn execute(&mut self, mut parent_stack: RcStack) -> anyhow::Result<()> {
+    fn execute(&mut self, mut parent_stack: StackRef, ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(mut child_stack) = self.stack.take() {
             debug!("{}: {{", &self.name);
             let executors: Vec<DynExecutor> = self.executors.drain(..).collect();
             for (counter, mut executor) in executors.into_iter().enumerate() {
                 executor
-                    .execute(child_stack.clone())
+                    .execute(child_stack.clone(), ctx.clone())
                     .with_context(|| self.error_context(counter))?;
             }
             self.variables

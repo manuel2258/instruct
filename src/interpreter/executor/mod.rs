@@ -4,12 +4,15 @@ use crate::interpreter::stack::Stack;
 use crate::parse::ast::{Executeable, ExecuteableType};
 
 use self::block::BlockExecutor;
+use self::call::CallExecutor;
 use self::command::CommandExecutor;
 use self::task::TaskExecutor;
 
-use super::stack::RcStack;
+use super::context::ContextRef;
+use super::stack::StackRef;
 
 mod block;
+mod call;
 mod command;
 mod task;
 
@@ -24,18 +27,19 @@ pub enum ExecutorError {
 }
 
 pub trait Executor {
-    fn init(&mut self, stack: RcStack) -> anyhow::Result<()>;
+    fn init(&mut self, stack: StackRef, ctx: ContextRef) -> anyhow::Result<()>;
 
-    fn execute(&mut self, stack: RcStack) -> anyhow::Result<()>;
+    fn execute(&mut self, stack: StackRef, ctx: ContextRef) -> anyhow::Result<()>;
 }
 
 type DynExecutor = Box<dyn Executor>;
 
-pub fn get_executor(input: Executeable, _stack: RcStack) -> anyhow::Result<DynExecutor> {
+pub fn get_executor(input: Executeable, _stack: StackRef) -> anyhow::Result<DynExecutor> {
     match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),
         ExecuteableType::Task { .. } => Ok(Box::new(TaskExecutor::new(input)?)),
         ExecuteableType::Block { .. } => Ok(Box::new(BlockExecutor::new(input)?)),
+        ExecuteableType::Call { .. } => Ok(Box::new(CallExecutor::new(input)?)),
         exec_type => Err(ExecutorError::NotImplemented(exec_type.clone()).into()),
     }
 }

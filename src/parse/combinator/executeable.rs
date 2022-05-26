@@ -135,7 +135,9 @@ pub fn task_executeable<'a, E: ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, Executeable, E> {
     let (i, _) = multispace0(i)?;
+    let (i, output_variables) = opt(output_variable_bindings)(i)?;
     let (i, _) = preceded(space0, tag("task"))(i)?;
+    let (i, options) = opt(option_variable_bindings)(i)?;
     let (i, name) = executor_name(i)?;
     let (i, _) = preceded(space0, char(':'))(i)?;
     let (i, _) = delimited(space0, char('{'), multispace0)(i)?;
@@ -145,9 +147,9 @@ pub fn task_executeable<'a, E: ParseError<&'a str>>(
     Ok((
         i,
         Executeable {
-            output_variables: None,
+            output_variables,
             name,
-            options: None,
+            options,
             executeable_type: ExecuteableType::Task { executeables },
         },
     ))

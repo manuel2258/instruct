@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use super::stack::RcStack;
+use super::stack::StackRef;
 
 #[derive(Debug, PartialEq)]
 enum InterpolateableAfter {
@@ -45,7 +45,7 @@ impl Interpolateable {
         }
     }
 
-    pub fn assert_variables_allocated(&self, stack: &RcStack) -> anyhow::Result<()> {
+    pub fn assert_variables_allocated(&self, stack: &StackRef) -> anyhow::Result<()> {
         stack.borrow_mut().assert_allocated(&self.variable_name)?;
 
         match &self.after {
@@ -54,7 +54,7 @@ impl Interpolateable {
         }
     }
 
-    pub fn interpolate(&self, stack: &RcStack, target: &mut String) -> anyhow::Result<()> {
+    pub fn interpolate(&self, stack: &StackRef, target: &mut String) -> anyhow::Result<()> {
         target.push_str(&self.before);
         target.push_str(&stack.borrow().get(&self.variable_name)?);
 
