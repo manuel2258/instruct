@@ -34,6 +34,7 @@ pub trait Executor {
 
 type DynExecutor = Box<dyn Executor>;
 
+#[allow(unreachable_patterns)]
 pub fn get_executor(input: Executeable, _stack: StackRef) -> anyhow::Result<DynExecutor> {
     match &input.executeable_type {
         ExecuteableType::Command { .. } => Ok(Box::new(CommandExecutor::new(input)?)),

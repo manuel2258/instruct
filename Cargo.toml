@@ -1,14 +1,21 @@
 [package]
-name = "task_lang"
+name = "instruct"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+keywords = ["automation", "interpreter", "dsl", "language", "make"]
+categories = ["command-line-utilities", "compilers", "development-tools"]
+description = "A language to write general purpose 'makefile like' tasks which are powerful and reuseable"
+homepage = "https://github.com/manuel2258/instruct"
+repository = "https://github.com/manuel2258/instruct"
+readme = "README.md"
 
 [lib]
-name = "task_lang"
+name = "instruct"
 path = "src/lib.rs"
 
 [[bin]]
-name = "task"
+name = "inst"
 path = "src/main.rs"
 
 [dependencies]

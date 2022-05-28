@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::interpreter::context::ContextRef;
 use crate::interpreter::stack::StackRef;
 use crate::interpreter::variables::Variables;
-use crate::parse::ast::{Executeable, ExecuteableType, VariableBindings};
+use crate::parse::ast::{Executeable, ExecuteableType};
 
 use super::{get_executor, DynExecutor, Executor, ExecutorError, Stack};
 

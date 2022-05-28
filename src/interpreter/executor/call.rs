@@ -21,7 +21,7 @@ pub struct CallExecutor {
 impl CallExecutor {
     pub fn new(input: Executeable) -> anyhow::Result<Self> {
         if let ExecuteableType::Call { target } = input.executeable_type {
-            let mut exe = CallExecutor {
+            let exe = CallExecutor {
                 variables: Variables::new(input.output_variables),
                 target_name: target,
                 executors: None,

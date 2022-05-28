@@ -26,8 +26,8 @@ impl Config {
             figment
         };
         Ok(figment
-            .join(Toml::file("task.toml"))
-            .join(Env::prefixed("TASK_"))
+            .join(Toml::file("instruct.toml"))
+            .join(Env::prefixed("INSTRUCT_"))
             .extract()?)
     }
 }

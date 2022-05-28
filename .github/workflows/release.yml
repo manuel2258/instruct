@@ -6,8 +6,8 @@ on:
       - "v*"
 
 jobs:
-  release:
-    name: release
+  gh-release:
+    name: github release
     runs-on: "ubuntu-latest"
 
     steps:
@@ -21,4 +21,18 @@ jobs:
           args: --release --all-features
       - uses: softprops/action-gh-release@v1
         with:
-          files: target/release/task
+          files: target/release/inst
+
+  crate-release:
+    name: crates.io release
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+      - uses: katyo/publish-crates@v1
+        with:
+            registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

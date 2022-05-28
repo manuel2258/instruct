@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use thiserror::Error;
 
 pub use self::namespace::RootNamespace;
