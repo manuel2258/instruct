@@ -9,7 +9,6 @@ A language to write general purpose 'makefile like' tasks which are powerful and
 This project is somewhat working!
 
 - [x] Parsing
-    - [] 
 - [x] Static analysis
 - [x] Interpreter
 - [/] Task project definition and config files
@@ -31,9 +30,27 @@ Therefor this language thrives to provide following goals:
 - Reuseability of tasks
 - Simple package / dependency system
 - Native support for multiple executors:
-    - Simple shell
+    - Simple cmd's
     - Docker
     - Python
+- Simple and buildin testing
+
+## Installation
+
+It can be installed through cargo:
+
+```sh
+cargo install instruct
+```
+
+Or you can also directly grab the latest prebuild binary from master:
+
+```sh
+wget https://github.com/manuel2258/instruct/releases/download/staging/inst
+chmod +x ./inst
+```
+
+Or you can also download a prebuild 
 
 ## Example
 
