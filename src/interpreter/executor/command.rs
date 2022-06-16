@@ -1,7 +1,3 @@
-use std::io::Write;
-use std::process::{Command, Stdio};
-use std::str;
-
 use anyhow::Context;
 use log::{debug, error, info, warn};
 
@@ -95,62 +91,44 @@ impl Executor for CommandExecutor {
         Ok(())
     }
 
-    fn execute(&mut self, mut parent_stack: StackRef, _ctx: ContextRef) -> anyhow::Result<()> {
+    fn execute(&mut self, mut parent_stack: StackRef, ctx: ContextRef) -> anyhow::Result<()> {
         if let Some(mut child_stack) = self.stack.clone() {
             let interpolated = self.interpolate(&parent_stack)?;
-            let mut cmd_iter = interpolated.split(' ');
-            let program = cmd_iter.next().unwrap();
-            let args: Vec<&str> = cmd_iter.collect();
-
-            let mut cmd = Command::new(program);
-            cmd.args(args);
-            cmd.stdin(Stdio::piped());
-            cmd.stdout(Stdio::piped());
-            cmd.stderr(Stdio::piped());
 
             debug!("$  {}", &interpolated);
-            let mut process = cmd.spawn().with_context(|| self.error_context())?;
 
-            if let Some(stdin_variable) = &self.stdin_variable {
-                let stdin = parent_stack.borrow().get(stdin_variable)?;
-                debug!("<  {}", &stdin);
-                write!(process.stdin.as_mut().unwrap(), "{}", &stdin)?;
-            }
+            let result = ctx
+                .borrow()
+                .runner
+                .run(
+                    "default".into(),
+                    interpolated,
+                    self.trim_stdout,
+                    self.trim_stderr,
+                )
+                .map_err(|err| ExecutorError::RunnerInterfaceError(err))?;
 
-            let output = process
-                .wait_with_output()
-                .with_context(|| self.error_context())?;
-            let mut stdout: String = str::from_utf8(&output.stdout).unwrap().into();
-            if self.trim_stdout {
-                stdout = stdout.trim().into();
-            }
-            let mut stderr: String = str::from_utf8(&output.stderr).unwrap().into();
-            if self.trim_stderr {
-                stderr = stderr.trim().into();
-            }
-            let status: String = output.status.code().unwrap().to_string();
-
-            if !output.status.success() {
-                error!("$? {}", status);
+            if result.status != "0" {
+                error!("$? {}", result.status);
             }
 
-            if !stdout.is_empty() {
-                info!("1> {}", &stdout);
+            if !result.stdout.is_empty() {
+                info!("1> {}", &result.stdout);
             }
-            if !stderr.is_empty() {
-                warn!("2> {}", &stderr);
+            if !result.stderr.is_empty() {
+                warn!("2> {}", &result.stderr);
             }
 
             {
                 let mut child_stack_ref = child_stack.borrow_mut();
                 child_stack_ref
-                    .set("stdout".into(), stdout)
+                    .set("stdout".into(), result.stdout)
                     .with_context(|| self.error_context())?;
                 child_stack_ref
-                    .set("stderr".into(), stderr)
+                    .set("stderr".into(), result.stderr)
                     .with_context(|| self.error_context())?;
                 child_stack_ref
-                    .set("status".into(), status)
+                    .set("status".into(), result.status)
                     .with_context(|| self.error_context())?;
             }
 

@@ -2,6 +2,7 @@ use thiserror::Error;
 
 use crate::interpreter::stack::Stack;
 use crate::parse::ast::{Executeable, ExecuteableType};
+use crate::runner::interface::RunnerInterfaceError;
 
 use self::block::BlockExecutor;
 use self::call::CallExecutor;
@@ -24,6 +25,8 @@ pub enum ExecutorError {
     NotImplemented(ExecuteableType),
     #[error("Executor was not initialized")]
     NotInitialized,
+    #[error("Error while calling the runner: {0}")]
+    RunnerInterfaceError(RunnerInterfaceError),
 }
 
 pub trait Executor {

@@ -32,3 +32,5 @@ lazy_static = "1"
 figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "=1.0.136", features = ["derive"] }
 clap = { version = "3", features = ["derive"] }
+
+crossbeam-channel = "0.5"

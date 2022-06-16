@@ -1,3 +1,5 @@
+use std::thread::JoinHandle;
+
 use clap::Parser;
 use log::error;
 use thiserror::Error;
@@ -7,6 +9,8 @@ pub mod config;
 pub mod interpreter;
 pub mod logger;
 pub mod parse;
+pub mod runner;
+pub mod util;
 
 #[derive(Error, Debug)]
 pub enum TaskLangError {
@@ -24,6 +28,8 @@ pub enum TaskLangError {
     StaticAnalysisError(String, anyhow::Error),
     #[error("Error while executing task '{0}'{}", print_err(.1))]
     ExecutionError(String, anyhow::Error),
+    #[error("Error in the runner thread: {}", print_err(.0))]
+    RunnerThreadPanic(anyhow::Error),
 }
 
 fn print_err(error: &anyhow::Error) -> String {
@@ -34,14 +40,19 @@ fn print_err(error: &anyhow::Error) -> String {
     repr
 }
 
-pub fn run() -> Result<(), TaskLangError> {
-    let cli = cli::Cli::parse();
-    let config = config::Config::load(cli.task_file).map_err(TaskLangError::ConfigError)?;
+fn create_runner_thread() -> (
+    util::channel::TwoWayChannel<runner::message::RunnerRequest, runner::message::RunnerResponse>,
+    JoinHandle<()>,
+) {
+    let (runner_requester, runner_responder) = util::channel::TwoWayChannel::new_pair();
+    let runner_server = runner::server::RunnerServer::new_thread(runner_responder);
 
-    logger::setup_logger(&cli.log_level).unwrap();
+    (runner_requester, runner_server)
+}
 
-    let task = &cli.task;
-
+fn parse_root_namespace(
+    config: &config::Config,
+) -> Result<interpreter::RootNamespace, TaskLangError> {
     let mut root_namespace = interpreter::RootNamespace::default();
 
     for (name, module) in &config.module {
@@ -53,16 +64,25 @@ pub fn run() -> Result<(), TaskLangError> {
             .map_err(|err| TaskLangError::NamespaceError(name.into(), location.into(), err))?;
     }
 
-    let mut interpreter = interpreter::Interpreter::new(root_namespace);
-    interpreter
-        .resolve(task)
-        .map_err(|err| TaskLangError::ResolveError(task.into(), err))?;
-    interpreter
-        .initialize()
-        .map_err(|err| TaskLangError::StaticAnalysisError(task.into(), err))?;
-    interpreter
-        .run()
-        .map_err(|err| TaskLangError::ExecutionError(task.into(), err))?;
+    Ok(root_namespace)
+}
 
-    Ok(())
+pub fn run() {
+    let cli = cli::Cli::parse();
+    let config = config::Config::load(cli.task_file).unwrap();
+
+    logger::setup_logger(&cli.log_level).unwrap();
+
+    let root_namespace = parse_root_namespace(&config).unwrap();
+
+    let (runner_requester, runner_server) = create_runner_thread();
+
+    let interpreter_thread = interpreter::Interpreter::run_as_new_thread(
+        root_namespace,
+        runner_requester,
+        cli.task.clone(),
+    );
+
+    interpreter_thread.join().unwrap();
+    runner_server.join().unwrap();
 }
